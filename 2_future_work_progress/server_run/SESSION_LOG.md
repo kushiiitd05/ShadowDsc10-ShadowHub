@@ -5,3 +5,6 @@
 [2026-10-26] [1.4 build] main.pdf 6 pages (TeX Live, pdfLaTeX x2); validator 30/31 (placeholders only); pytest 9/9; audit 576/576 numbers traced
 [2026-10-26] [1.4 rerun] run_all.py from scratch reproduces every table (only diff: inf->blank in a raw-scale pct column); figures now byte-identical across runs
 [2026-10-26] [1.5 handover] REVIEW_REQUEST.md filled; branch max/midterm-r1 local; bundle at kush_work/review_midterm_r1.bundle; no push
+[2026-11-24] [plan] read GitHub, laptop copy and second-machine copy of the future-work docs; two reader agents verified two outside reviews against data [collision of end-term test window with fold 4 confirmed; open-zero explanation refuted; sum-convention sensitivity fix adopted]
+[2026-11-24] [server] control rerun of the 0.06976 pipeline started on a GPU server with model saving [37/37 origins built; folds building; fits pending]
+[2026-11-24] [docs] added ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-24.md, MASTER_PROMPTS_ENDTERM_2026-11-24.md, endterm/control_rerun.py [branch plan/endterm-2026-11-24, not merged]
