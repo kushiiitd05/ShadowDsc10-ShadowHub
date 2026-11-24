@@ -9,7 +9,7 @@ Everything marked VERIFIED below was recomputed locally from the raw files, the 
 |---|---|
 | Best earlier model | CatBoost + LightGBM + LightGBM-Tweedie, log-space mean, seed `20260807`, earlier public score 0.06976 (RMSLE) |
 | Model weights | **Not saved by any script and not found anywhere** (repo, Kaggle kernel output, Mac, both GPU servers). The 4.5 h run must be redone to get weights |
-| Control rerun | Running on a GPU server (CPU GBDT). Same code, seed and pins (Python 3.11, numpy 1.25.2, pandas 2.3.3, scikit-learn 1.7.2, CatBoost 1.2.10, LightGBM 4.7.0; pyarrow pinned to 17.0.0). Rebuilds all 37 origins and 4 folds, then fits 3 models, saves each model with a SHA-256, timings and a control submission. Script: `endterm/control_rerun.py` |
+| Control rerun | Running on one GPU server (CPU GBDT); data rebuilt and verified (see section 9). Same code, seed and pins (Python 3.11, numpy 1.25.2, pandas 2.3.3, scikit-learn 1.7.2, CatBoost 1.2.10, LightGBM 4.7.0; pyarrow pinned to 17.0.0). Rebuilds all 37 origins and 4 folds, then fits 3 models, saves each model with a SHA-256, timings and a control submission. Script: `endterm/control_rerun.py` |
 | Raw data check | Server copies of the four raw CSVs match the repo SHA-256 (`orders_train.csv` = `bc0bf252...1e6`) |
 | Phases 0-5 of the improvement plan | Not started |
 | End-term experiments | Not started; design fixed in section 4 |
@@ -74,3 +74,53 @@ Everything marked VERIFIED below was recomputed locally from the raw files, the 
 ## 7. Outside reviews received (24 Nov) and how they were used
 
 Four pasted reviews and two files were read; two files were checked by independent reader agents against the data. Adopted: the collision finding, the sum-versus-mean sensitivity fix, the `init_score` bug, hub-stratified sampling, noise-floor and per-fold checks, separation of column and row experiments. Rejected after testing: horizon-bucket offsets, "open-zero rows explain the gap", renormalising ridge weights. Held as unverified leads: hurdle models, peer-hub residuals, regime experts, hierarchical reconciliation, adaptation to conditional shift, coresets built from GBDT leaves, and several arXiv IDs given only by the reviews (including one that contradicts the plan's Chronos-2 ID). None of these citations has been opened by us yet; open each before citing.
+
+## 8. All-inclusive gated plan (v3, 2026-11-24 evening)
+
+Sources merged: the repo's long-form plan and Max-plan files, the two laptop copies, the four pasted outside reviews, two audit documents (checked by reader agents), the research agents' reports and our own measurements. Every item has a test route. "Harness" = `improve/exp_runner.py` (LightGBM screening, folds 2-4, fixed settings, one row per run in `experiments.csv`).
+
+### 8.1 Gate rules (decide mechanically, never by the public score)
+- **Champion** = the current best variant. Start: `base` (Phase-0 fixed LightGBM: cross-fitted HubID encoding, early stopping on a chronological holdout with purged origins).
+- A variant **passes** only if all hold against the champion, on the same folds and seed: (1) mean RMSLE over folds improves by at least 0.002; (2) it wins on at least 2 of 3 development folds (3 of 5 once five folds exist); (3) the gain survives `rmsle_excl_open0`; (4) the gain is larger than twice the measured seed-to-seed spread of the champion; (5) per-hub and per-horizon error do not get materially worse (report, do not hide).
+- The best passing variant becomes the new champion and the next variants are re-run against it (greedy forward selection). Variants that fail are logged, not deleted.
+- Confirm each new champion on the full 3-model blend and on the season-matched fold before it is accepted. The final submission is chosen by CV, never by the public score.
+
+### 8.2 Stages
+| Stage | Content | Where | Done when |
+|---|---|---|---|
+| G0 trust | Noise floor (`base`, 2 seeds), `no_te` vs `base`, per-fold open-zero counts, season-matched fold 2014-06-19 built, fold 1 added, unit tests (helpers pass 6/6) | server B | noise floor and TE verdict logged |
+| G1 level and bias (harness variants) | `level`, `level_off`, `offset`, `recency365/180`, `tweedie_init`, `colsample03` | server B (2 jobs) | each row in `experiments.csv`, champion chosen |
+| G2 structure (needs small code) | `linear_tree` member; hurdle (classifier x positive regressor); month-ahead model for horizons 22-42 using only long-window features; per-format models; summer-2014 incomplete origins (needs a change in the origin builder) | server B / server A | gate verdicts |
+| G3 features (needs feature code) | per-hub ridge trend (91/365 days), recent-window weekday x promo medians, closure and promo streak counters, region proxy, drop the 24 duplicate columns, permutation-importance pruning | server B | gate verdicts |
+| G4 members and blend | CatBoost on the champion recipe, seeds, equal-weight log mean vs constrained weights (leave-one-fold-out), entity-embedding MLP (CPU/GPU), one Chronos-2 pilot, TabPFN-TS only after detrending | both | blend passes the gate on all folds |
+| G5 final | retrain champion on all origins with fixed rounds, SAVE models and SHA-256, sanity checks (closed rows 0, no NaN, Id order, test-prediction distribution), tag and record in `STATUS.md` | server | models saved and hashed |
+
+### 8.3 End-term track (runs in parallel, does not wait for G2-G4)
+1. Decide the split (section 6, item 1). 2. Rebuild features at the split date. 3. `x*` LightGBM and ridge, hyperparameters tuned on a training-only part. 4. Uniform and hub-stratified sampling, leverage and sensitivity sampling, rough models, coreset, column experiment. 5. Plots 1-5, speed-up table, timings on an otherwise idle server. 6. Review agent checks every number, then slides.
+
+### 8.4 Ideas from outside reviews: status and test route
+| Idea | Source | Status | Test route |
+|---|---|---|---|
+| Level residual target, global offset | plan, reviews | in harness | `level`, `level_off`, `offset` |
+| Horizon-bucket offsets | reviews | refuted by saved OOF | none |
+| Open-zero rows explain the gap | reviews | refuted | none |
+| Hurdle model (occurrence x size) | reviews 1, 3 | G2 | classifier on open rows, product with positive regressor; compare with `rmsle_excl_open0` |
+| Month-ahead models for horizons 22-42 | review 1 (winner write-up not verified) | G2 | train on horizons 22-42 with only long-window features |
+| Two-stage sessions x basket size | review 1 | G3 | out-of-fold session model; high leakage risk, gate strictly |
+| Season-filtered member (May-Sep) | review 1, plan 1b.2 | G2 | needs incomplete origins |
+| Closure and promo streak counters | reviews, plan 1b.7 | G3 | add columns, rerun gate |
+| Entity-embedding MLP | reviews, plan 3.3 | G4 | CPU first, blend by out-of-fold weights |
+| Foundation models | reviews disagree | G4 pilot only | one Chronos-2 pilot; no verified head-to-head on this data |
+| Peer-hub residual features | review 3 | waiting list | residuals available only up to the origin, so it acts as a level feature; test after G3 |
+| Regime experts, mixture of experts | review 3 | waiting list | regime indicator as a feature first |
+| Hierarchical reconciliation | review 3 | waiting list | sums are on the raw scale while the loss is on log scale; test small |
+| Conditional-shift adaptation, uncertainty calibration | review 3 | waiting list | low priority |
+| Purged diagnostic fold, adversarial validation | review 4 | G0 / G3 | extra fold; feature screening |
+| Coresets from GBDT leaves (PVLDB 2024) | review 4 | end-term extra | verify source first |
+| Multi-seed bagging | review 4 | G4 | seeds in the blend |
+
+## 9. Run log, 2026-11-24 evening
+- Data rebuild fidelity (VERIFIED): both servers rebuilt 37 origins and 4 folds from the raw files; the two servers agree on all 37 file hashes. Against the original run's output the headers (347 columns) and row counts are identical and values differ only in the last digit (about 1e-16 relative, library-build rounding in the standard-deviation features), so the rebuilt data is numerically equal but not bit-identical.
+- Harness smoke test (LightGBM, fold 2, 50-round cap, 8 threads, server under load): RMSLE 0.1301 (0.1237 without the one open-zero row). Loading a fold took most of the 809 s, so the harness now loads each fold once and runs several variants on it.
+- Two sweeps running on the second server: A = `base,no_te,level,level_off,offset` (seed 20260807), B = `base,recency365,colsample03,tweedie_init` (seed 20260808). The two `base` rows give the noise floor.
+- Control rerun of the original 3-model pipeline: fitting CatBoost, then LightGBM, then Tweedie; models and `submission_control.csv` appear in its output folder when done.
