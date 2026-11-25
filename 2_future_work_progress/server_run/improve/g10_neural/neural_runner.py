@@ -56,11 +56,18 @@ def append_record(out_dir: Path, record: dict) -> None:
     (pd.concat([pd.read_csv(path), frame], ignore_index=True) if path.exists() else frame).to_csv(path, index=False)
 
 
+def complete_hub_rows(valid: pd.DataFrame) -> pd.DataFrame:
+    """Rows of hubs that have the full block of forecast days (a new frame; hubs with a partial block are dropped)."""
+    counts = valid.groupby("HubID")["Date"].transform("size")
+    return valid[counts == counts.max()].reset_index(drop=True)
+
+
 def load_fold(root: Path, fold: int, n_hubs: int | None) -> tuple[pd.DataFrame, pd.DataFrame, pd.Timestamp]:
     """(history rows up to the origin, fold rows to forecast, origin). n_hubs limits to the first n hubs (smoke runs)."""
     proc = root / "data/processed"
     valid = pd.read_csv(next((proc / "folds").glob(f"fold_{fold}_*.csv.gz")), parse_dates=["Date", "ForecastOrigin"])
     origin = pd.Timestamp(valid["ForecastOrigin"].iloc[0])
+    valid = complete_hub_rows(valid)  # fold 5 lacks the 180 gap hubs' later days: score the hubs with a full horizon
     base = pd.read_csv(proc / "base_train.csv.gz", usecols=BASE_COLUMNS, parse_dates=["Date"])
     if n_hubs:
         keep = np.sort(valid["HubID"].unique())[:n_hubs]
