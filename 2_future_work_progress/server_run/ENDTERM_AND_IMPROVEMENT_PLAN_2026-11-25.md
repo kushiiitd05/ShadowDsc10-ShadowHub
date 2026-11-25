@@ -520,3 +520,17 @@ History = all raw rows up to the forecast origin; 0.5 quantile, expm1, clipped a
 | `cs02` | 0.1377 | 0.1215 | 0.1129 | 0.1039 | 0.1190 |
 
 Blend gain over `cs02` (covariates variant; positive = better): weight 0.1 gives −0.0006 / +0.0016 / +0.0018 / +0.0007 (mean +0.0009); weight 0.2 gives −0.0029 / +0.0019 / +0.0013 / −0.0001 (mean 0.0000); weight 0.3 gives mean −0.0025. The univariate version loses at every weight. Best fold gain 0.0019, below the 0.0024 gate; fold 1 is worse. **Not adopted.** Code in `improve/g7_chronos/`, results in `endterm/results/CHR/` locally.
+
+## 29. TiDE and NHITS pilots (items 3.2), 25 Nov 20:30: not adopted; TabPFN-TS pending
+
+neuralforecast 3.4.0 in a separate venv; history includes the origin day; closed-day targets interpolated in history (without it, smoke RMSLE was 0.86–0.95); 26 tests pass. TabPFN v3.5/v2.5 need a browser licence login, so TabPFN-TS uses the ungated TabPFN v2 checkpoint. Configs were chosen on a fold-4, 100-hub smoke, a small leak into fold 4 only.
+
+| RMSLE, all rows | fold 1 | fold 2 | fold 3 | fold 4 |
+|---|---|---|---|---|
+| TiDE | 0.2210 | 0.2138 | 0.2042 | 0.1855 |
+| NHITS | 0.3717 | 0.1562 | 0.1604 | 0.1394 |
+| `cs02` | 0.1377 | 0.1215 | 0.1129 | 0.1039 |
+
+Blend gain over `cs02` (positive = better), folds 1 / 2 / 3 / 4: TiDE w0.1 +.0017 / −.0009 / −.0028 / +.0013; w0.2 +.0006 / −.0044 / −.0076 / −.0002. NHITS w0.1 −.0045 / +.0009 / −.0009 / +.0007; w0.2 −.0167 / +.0008 / −.0028 / +.0004. Best mean gain: TiDE −0.0008, NHITS +0.0003, both far below 0.0024. **TiDE and NHITS not adopted.**
+
+**TabPFN-TS:** fold 4 on 100 hubs only (0.1096 alone vs 0.0938 for `cs02` on those hubs; blend gains +0.0019 / +0.0030 / +0.0033 at weights 0.1 / 0.2 / 0.3). A subset is not a verdict; the full 4-fold run (about 14 min per fold) was still running on Vinayak when the VPN dropped. Verdict after the OOF is pulled and `neural_eval.py` is run.
