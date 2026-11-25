@@ -294,3 +294,22 @@ def test_static_frame_fills_missing_metadata_with_indicator():
     st = build_static(valid)
     assert st.notna().all().all()
     assert st["CompetitorDistanceLog1p_missing"].tolist() == [0.0, 1.0, 0.0]
+
+
+def test_complete_hub_rows_drops_partial_hubs_without_mutation() -> None:
+    from neural_runner import complete_hub_rows
+
+    valid = pd.DataFrame({"HubID": [1, 1, 1, 2, 2], "Date": pd.to_datetime(["2015-01-03", "2015-01-04", "2015-01-05", "2015-01-03", "2015-01-04"])})
+    out = complete_hub_rows(valid)
+    assert out["HubID"].tolist() == [1, 1, 1] and len(valid) == 5
+
+
+def test_to_tabpfn_frames_drops_context_hubs_without_future_rows() -> None:
+    from tabpfn_members import COVARIATES, to_tabpfn_frames
+
+    ds = pd.date_range("2015-01-01", periods=3)
+    cov = {c: 0.0 for c in COVARIATES}
+    panel = pd.DataFrame({"unique_id": ["1"] * 3 + ["2"] * 3, "ds": list(ds) * 2, "y": 1.0, **cov})
+    future = pd.DataFrame({"unique_id": ["1"] * 2, "ds": pd.date_range("2015-01-04", periods=2), **cov})
+    ctx, fut = to_tabpfn_frames(panel, future, 10)
+    assert set(ctx["item_id"]) == {"1"} and set(fut["item_id"]) == {"1"} and panel["unique_id"].nunique() == 2
