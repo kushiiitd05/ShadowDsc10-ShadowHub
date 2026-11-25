@@ -615,3 +615,20 @@ Full 20-config table with per-fold scores: `RESULTS_AND_VERDICTS_2026-11-26.md` 
 **Gate reading (stated plainly):** the 4-fold mean gain is 0.0031, above 0.0024, and the sign is positive on every fold in the 3-seed average and on every seed's 4-fold mean. The stricter reading, folds 2–4 only, gives +0.0016 and **misses** the 0.0024 mark; fold 4, the fold nearest the test window, is flat (+0.0003), and one seed is slightly negative there. Most of the gain comes from folds 1 and 3. The best-of-19 selection effect is visible: the seed-07 gain (+0.0041) shrank on the two fresh seeds (+0.0030, +0.0024). Realistic expected gain over `cs02`: about 0.003 on the 4-fold mean, near zero on fold 4.
 
 **Status:** strong challenger, used as the base for the stacking tests (lr 0.025 with fixed rounds, per-tier member, TabPFN-TS blend, neighbour sweep running as `exp_out_HP17N`). Final adoption is decided by CV at the 2 Dec pick, with the folds 2–4 miss and the flat fold 4 stated in the decision.
+
+## 36. Stack test: `hp17` + TabPFN-TS (weight 0.2) against `cs02`, 26 Nov 03:00
+
+Both sides use the same seeds (`cs02` seeds 07/08/09 vs `hp17` seeds 07/08/09); TabPFN-TS is a single run (seed 07). Gain = `cs02` minus stack (positive = better), RMSLE all rows. Columns: seed 07 / 08 / 09 / 3-seed log average.
+
+| fold | seed 07 | seed 08 | seed 09 | 3-seed avg |
+|---|---|---|---|---|
+| 1 | +0.0018 | −0.0004 | +0.0009 | −0.0005 |
+| 2 | +0.0046 | +0.0043 | +0.0034 | +0.0039 |
+| 3 | +0.0046 | +0.0023 | +0.0019 | +0.0024 |
+| 4 | +0.0034 | +0.0035 | +0.0017 | +0.0024 |
+| 5 (935 hubs with a full block) | +0.0033 | +0.0054 | +0.0111 | +0.0058 |
+| mean folds 2–4 | +0.0042 | +0.0034 | +0.0023 | **+0.0029** |
+
+Excluding open-zero rows, 3-seed average: fold 1 −0.0005, fold 2 +0.0041, fold 3 +0.0024, fold 4 +0.0024. Weights tried on the same folds: 0.1 gives folds 2–4 mean +0.0025, 0.2 gives +0.0029, 0.3 gives +0.0026. `hp17` alone gives +0.0016 on folds 2–4 (misses the gate); the TabPFN-TS blend adds about +0.0013 on top.
+
+**Gate reading:** mean gain over folds 2–4 is 0.0029 (≥ 0.0024); improved on 3 of 3 folds; positive on every fold 2–5 for every seed; survives excluding open-zero rows; fold 5 checked and positive on all seeds. Seed 09 alone is 0.0023, 0.0001 under the mark. **The stack passes the gate on the seed-averaged reading and is the leading candidate, not yet the champion.** Open points that keep it a candidate: (1) `hp17` was the best of 19 on the same folds and its gain shrank on fresh seeds (selection effect); (2) the weight 0.2 was picked from three values on the same folds; (3) TabPFN-TS has one seed and was tuned on a fold-4, 100-hub smoke (a small leak into fold 4); (4) fold 1 is flat, so the stack is not better on the winter fold; (5) the final pipeline does not yet predict the real test window with TabPFN-TS. These are closed by the steps in `FINAL_PLAN_2026-11-26.md`.
