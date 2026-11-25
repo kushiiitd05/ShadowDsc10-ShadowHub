@@ -38,6 +38,7 @@ class Config:
     min_child: int = 80
     reg_lambda: float = 1.0
     extra_trees: bool = False
+    model: str = "lightgbm"        # lightgbm | catboost (production settings: depth 8, lr 0.04, l2 5)
 
 
 VARIANTS: dict[str, Config] = {
@@ -67,6 +68,15 @@ VARIANTS: dict[str, Config] = {
     "cs02_mcs200": Config(colsample=0.2, subsample_freq=1, min_child=200),
     "cs02_lambda10": Config(colsample=0.2, subsample_freq=1, reg_lambda=10.0),
     "cs02_extra": Config(colsample=0.2, subsample_freq=1, extra_trees=True),
+    # round 3: stack the single-change gains of round 2 (no_te -0.0015, lambda10 -0.0011, leaves127 -0.0010 vs cs02)
+    "cs02_no_te_l10": Config(colsample=0.2, subsample_freq=1, te=False, reg_lambda=10.0),
+    "cs02_no_te_l10_127": Config(colsample=0.2, subsample_freq=1, te=False, reg_lambda=10.0, num_leaves=127),
+    "cs02_l10_127": Config(colsample=0.2, subsample_freq=1, reg_lambda=10.0, num_leaves=127),
+    # baseline ensemble members with the production settings, on the corrected folds (run with --lr 0.025 --rounds 3000 for LightGBM)
+    "prod_tweedie": Config(target="raw", objective="tweedie"),
+    "prod_cat": Config(model="catboost"),
+    "cs02_tweedie": Config(target="raw", objective="tweedie", colsample=0.2, subsample_freq=1),
+    "cs02_cat": Config(model="catboost", colsample=0.2),
 }
 
 
@@ -133,6 +143,23 @@ def prepare_fold(root: Path, fold_number: int, seed: int) -> dict:
     return {"train": train, "hold": hold, "valid": valid, "origin": origin, "columns": columns, "fold": fold_number}
 
 
+def fit_catboost_model(x_train: pd.DataFrame, y_train: np.ndarray, x_hold: pd.DataFrame, y_hold: np.ndarray,
+                       weight: np.ndarray | None, cfg: Config, seed: int, n_jobs: int, rounds: int):
+    """Production CatBoost settings; categorical columns passed as strings. Returns (model, raw-score predictor, best iteration)."""
+    from catboost import CatBoostRegressor, Pool
+
+    def as_text(frame: pd.DataFrame) -> pd.DataFrame:
+        return frame.astype({c: str for c in frame.columns if str(frame[c].dtype) == "category"})
+
+    xt, xh = as_text(x_train), as_text(x_hold)
+    cat_idx = [i for i, c in enumerate(xt.columns) if xt[c].dtype == object]
+    model = CatBoostRegressor(loss_function="RMSE", eval_metric="RMSE", iterations=rounds, learning_rate=0.04, depth=8, l2_leaf_reg=5.0,
+                              random_strength=0.5, rsm=cfg.colsample if cfg.colsample < 0.8 else None, random_seed=seed,
+                              thread_count=n_jobs, verbose=False, allow_writing_files=False)
+    model.fit(Pool(xt, y_train, cat_features=cat_idx, weight=weight), eval_set=Pool(xh, y_hold, cat_features=cat_idx), early_stopping_rounds=100, verbose=False)
+    return model, (lambda frame: model.predict(as_text(frame))), int(model.get_best_iteration())
+
+
 def fit_variant(ctx: dict, cfg: Config, seed: int, n_jobs: int, lr: float, rounds: int) -> tuple[pd.DataFrame, dict]:
     import lightgbm as lgb
     from src.model_pipeline import CATEGORICAL_COLUMNS
@@ -166,21 +193,26 @@ def fit_variant(ctx: dict, cfg: Config, seed: int, n_jobs: int, lr: float, round
     if cfg.linear_tree:
         params.update(linear_tree=True, linear_lambda=1.0)
     start = time.perf_counter()
-    model = lgb.LGBMRegressor(**params)
-    model.fit(x_train, y_train, sample_weight=weight, eval_set=[(x_hold, y_hold)],
-              callbacks=[lgb.early_stopping(100, verbose=False)], **kwargs)
+    if cfg.model == "catboost":
+        model, predict_raw, best_iteration = fit_catboost_model(x_train, y_train, x_hold, y_hold, weight, cfg, seed, n_jobs, rounds)
+    else:
+        model = lgb.LGBMRegressor(**params)
+        model.fit(x_train, y_train, sample_weight=weight, eval_set=[(x_hold, y_hold)],
+                  callbacks=[lgb.early_stopping(100, verbose=False)], **kwargs)
+        predict_raw = lambda frame: model.predict(frame, raw_score=True)  # noqa: E731
+        best_iteration = int(model.best_iteration_ or rounds)
     fit_seconds = time.perf_counter() - start
 
     offset = 0.0
     if cfg.offset:  # global additive log offset from the chronological holdout only
-        base = decode_prediction(model.predict(x_hold, raw_score=True), hold.loc[mh, "_level"].to_numpy(), cfg.target)
+        base = decode_prediction(predict_raw(x_hold), hold.loc[mh, "_level"].to_numpy(), cfg.target)
         offset = float(np.mean(np.log1p(hold.loc[mh, "ActualOrderVolume"].to_numpy()) - np.log1p(base)))
     open_mask = valid["IsOpen"].eq(1).to_numpy()
     pred = np.zeros(len(valid))
-    raw = model.predict(prep(valid.loc[open_mask], feats, cats), raw_score=True)
+    raw = predict_raw(prep(valid.loc[open_mask], feats, cats))
     pred[open_mask] = decode_prediction(raw, valid.loc[open_mask, "_level"].to_numpy(), cfg.target, offset)
     scores = fold_scores(valid["ActualOrderVolume"].to_numpy(float), pred, valid["IsOpen"].to_numpy())
-    scores.update(fold=ctx["fold"], best_iteration=int(model.best_iteration_ or rounds), fit_seconds=round(fit_seconds, 1),
+    scores.update(fold=ctx["fold"], best_iteration=best_iteration, fit_seconds=round(fit_seconds, 1),
                   train_rows=int(mt.sum()), offset=offset)
     oof = valid[["HubID", "Date", "Horizon", "IsOpen", "ActualOrderVolume"]].copy()
     oof["pred"] = pred
@@ -190,7 +222,7 @@ def fit_variant(ctx: dict, cfg: Config, seed: int, n_jobs: int, lr: float, round
 
 def write_record(out_dir: Path, name: str, cfg: Config, seed: int, rows: list[dict], args: argparse.Namespace) -> None:
     record = {
-        "date": date.today().isoformat(), "variant": name, "seed": seed, "model": "lightgbm",
+        "date": date.today().isoformat(), "variant": name, "seed": seed, "model": cfg.model,
         "config": json.dumps(cfg.__dict__, sort_keys=True), "config_hash": hashlib.sha256(json.dumps(cfg.__dict__, sort_keys=True).encode()).hexdigest()[:10],
         "lr": args.lr, "rounds": args.rounds, "n_jobs": args.n_jobs,
         "mean_all": float(np.mean([r["rmsle_all"] for r in rows])),
