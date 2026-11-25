@@ -124,3 +124,37 @@ Sources merged: the repo's long-form plan and Max-plan files, the two laptop cop
 - Harness smoke test (LightGBM, fold 2, 50-round cap, 8 threads, server under load): RMSLE 0.1301 (0.1237 without the one open-zero row). Loading a fold took most of the 809 s, so the harness now loads each fold once and runs several variants on it.
 - Two sweeps running on the second server: A = `base,no_te,level,level_off,offset` (seed 20260807), B = `base,recency365,colsample03,tweedie_init` (seed 20260808). The two `base` rows give the noise floor.
 - Control rerun of the original 3-model pipeline: fitting CatBoost, then LightGBM, then Tweedie; models and `submission_control.csv` appear in its output folder when done.
+
+## 10. Results, 2026-11-25 (VPN restored)
+
+### Control rerun (current best, server A) — DONE
+- Weights recovered by rebuilding: `catboost.cbm`, `lightgbm.txt`, `lightgbm_tweedie.txt` plus the three `test_pred_*.npy`, all in `~/Kush/shadowhub_endterm/out_control/` on server A.
+- SHA-256: catboost `03a248b2…ce06189`, lightgbm `572a90e2…06487a0`, tweedie `e50e4245…bb9ae1`; submission `443aa57e…fd0b8ba86` (full hashes in `control_manifest.json`).
+- Compared with the committed `submission_ensemble.csv`: 46,830 rows, log-space RMS difference 3e-5, max 7e-4. The old pipeline is reproduced. The other committed `submission.csv` differs by RMS 0.063, so it is a different artefact.
+- Best iterations: CatBoost 1499/1500, LightGBM 3000/3000, Tweedie 3000/3000 (no early stopping triggered). Fit times: 1.5 ks, 17.8 ks, 13.3 ks on a loaded server.
+
+### Screening rounds 1–2 (dev folds 2,3,4; mean RMSLE all rows; lower is better)
+Base noise: two seeds of `base` give 0.1221 and 0.1233 (spread 0.0012). Gate: gain ≥ 0.0024 vs the current champion.
+
+| Variant | mean | fold2 | fold3 | fold4 | note |
+|---|---|---|---|---|---|
+| base | 0.1221 / 0.1233 | 0.126 | 0.132 / 0.137 | 0.108 | two seeds |
+| recency365 (fixed helper) | 0.1208 | | | | within noise |
+| feature fraction 0.5 | 0.1174 | | | | |
+| feature fraction 0.3 | 0.1125 | 0.1205 | 0.1134 | 0.1036 | |
+| **cs02** (fraction 0.2 + bagging) | **0.1127 / 0.1128** | 0.1215 | 0.1129 | 0.1039 | **champion, −0.0094 vs base, beyond noise** |
+| cs02 without target encoding | 0.1112 | 0.1201 | 0.1122 | 0.1014 | −0.0015: below gate, stack candidate |
+| cs02 lambda 10 | 0.1116 | 0.1212 | 0.1118 | 0.1019 | −0.0011: below gate |
+| cs02 127 leaves | 0.1117 | 0.1183 | 0.1120 | 0.1048 | −0.0010: below gate |
+| cs02 recency365 | 0.1145 / 0.1119 | | | | seeds disagree: noise |
+| cs015 / cs01 / nobag / leaves31 / mcs200 / extra | 0.1129 / 0.1139 / 0.1126 / 0.1146 / 0.1142 / 0.1174 | | | | no gain |
+| level target, level + offset, Tweedie with init score | 0.192 / 0.198 / 0.138 | | | | clearly worse; dropped |
+| offset only | 0.1247 | | | | worse |
+
+Reading: feature subsampling is the only change that passes the gate. Nothing in round 2 passes it alone. Three small gains (no target encoding, lambda 10, 127 leaves) are each about the size of the seed noise, so round 3 tests them stacked and on a third seed.
+
+### Round 3 (launched 25 Nov ~12:17 on server B)
+- F: stacked variants `cs02_no_te_l10`, `cs02_no_te_l10_127`, `cs02_l10_127` (seed 20260807, folds 2–4).
+- G: `cs02_no_te`, `cs02_lambda10`, `cs02_leaves127` on seed 20260809 (noise check).
+- H: `base`, `cs02`, `cs02_no_te` on fold 1 (a fold the champion was not picked on).
+- Pass rule: a stack becomes champion only if it beats cs02 by ≥ 0.0024 on ≥ 2 of 3 folds on both seeds. Otherwise cs02 stays the recipe carried into CatBoost and the blend check.
