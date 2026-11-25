@@ -271,3 +271,35 @@ Offline checks run on the saved fold predictions (pooled over folds 1–4, leave
 | Adversarial validation, purged diagnostic fold | v3 | **left** (cheap) |
 | Peer-hub residuals, regime experts, reconciliation, shift adaptation | v3 | waiting list |
 | Coresets from GBDT leaves | v3 | end-term extra |
+
+## 16. Results at 14:00 (25 Nov): G2, fixed rounds, seed bagging; winner-sweep additions
+
+Mean RMSLE over folds 1–4, seed 20260807 unless stated.
+
+| Test | Result | Verdict |
+|---|---|---|
+| G2 `split_horizon` (separate models for horizons 1–21 and 22–42) | 0.1190 (folds 0.1370 / 0.1210 / 0.1107 / 0.1072) vs `cs02` 0.1190 | no gain: dropped |
+| G2 `long_window_only` (22–42 model without the 32 short-window columns) | 0.1189 | no gain: dropped |
+| Fixed rounds at lr 0.05, no early stopping | 300 rounds 0.1190; 600 rounds 0.1195; 1000 rounds 0.1198 | **early stopping is not needed**: fixed 300 equals early-stopped. The final retrain can use a fixed round count |
+| `cs02` at lr 0.025 / 3000 (early stopped) | 0.1170 | slightly better than lr 0.05 (0.1190) |
+| `cs02` on 3 seeds (07, 08, 09), 4-fold mean | 0.1190, 0.1186, 0.1191 | seed spread of the 4-fold mean is only 0.0005 |
+| 3-model blend per seed (08, 09) | 0.1184, 0.1180 (seed 07: 0.1178) | as before |
+| **LightGBM `cs02` averaged over 3 seeds** | **0.1173** (folds 0.1340 / 0.1194 / 0.1124 / 0.1035) | −0.0017 vs a single seed |
+| 3-model blend averaged over 3 seeds | 0.1175 (folds 0.1339 / 0.1204 / 0.1143 / 0.1016) | **no better than seed-averaged LightGBM alone**: once seeds are averaged, CatBoost and Tweedie add nothing |
+
+Working conclusion: the final model is a seed-averaged LightGBM `cs02`, with a fixed round count, tested at lr 0.025 (fixed 600 and 1000 rounds running). The 3-model blend stays as a fallback only.
+
+**Winner sweep** (`research/winner_sweep_2026-11-25.md`; the agent opened M5 1st/2nd/4th/5th code, Web Traffic 1st, Walmart 1st, Favorita 5th/12th and four arXiv papers; Favorita 1st, M5 3rd and the Ecuador competition were not verifiable; no source gives an RMSLE gain, so its ranking is judgement). New items added to the ledger:
+
+| # | Item | Plan |
+|---|---|---|
+| 1 | Fixed rounds / checkpoint averaging / seed bagging instead of early stopping | **done above** |
+| 2 | Treat the 184-day gap as missing: rolling and lag-364 features from observed days only, observed-day counts, fallback to a prior below a coverage minimum | feature code (round G3b) |
+| 3 | Year-ago window features (weekday ±1 week around lag 364; year-ago 42-day window mean, zero-day and promo counts; ratio to the year-ago pre-origin level) | feature code (G3b) |
+| 4 | Peer aggregates at the origin: format/tier means (in G3) plus the 5 most-correlated hubs | feature code (G3b) |
+| 5 | Keep-bar rule: same 3 seeds as the baseline, accept only if the gain beats the seed spread | already our gate; spread is now measured (0.0005 on the 4-fold mean) |
+| 6 | Low-rank SVD denoising of the hub × day matrix (rank 12–15), refit per origin | candidate, medium cost |
+| 7 | Equal-weight blend with one non-tree member | MLP run pending (torch build fixed: the first install was CUDA 13 on a CUDA 12.9 driver; reinstalling the cu128 build) |
+| 8 | Zero-day and closure counts and promo / non-promo means over several windows | in G3 streaks; extend in G3b |
+| 9 | Training origins every 7 days instead of 14 | candidate; needs origin rebuild |
+| 10 | Recursive plus direct models | dropped (low plausibility at 42 days, high cost) |
