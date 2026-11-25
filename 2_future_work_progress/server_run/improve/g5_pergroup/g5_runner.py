@@ -22,7 +22,7 @@ for _p in (HERE, HERE.parent):
 from exp_runner import VARIANTS, Config, fit_variant, prepare_fold, write_record  # noqa: E402
 from pergroup import fit_by_group  # noqa: E402
 
-GROUPED = {"perfmt": "HubFormat", "pertier": "AssortmentTier"}
+GROUPED = {"perfmt": ("HubFormat", "cs02"), "pertier": ("AssortmentTier", "cs02"), "pertier17": ("AssortmentTier", "hp17")}  # name -> (group column, base recipe)
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,8 @@ class G5Config(Config):
 
 
 def config_for(name: str) -> G5Config:
-    return G5Config(**{**VARIANTS["cs02"].__dict__, "group": GROUPED[name]})
+    group, base = GROUPED[name]
+    return G5Config(**{**VARIANTS[base].__dict__, "group": group})
 
 
 def main() -> int:
@@ -58,7 +59,7 @@ def main() -> int:
         ctx = prepare_fold(root, f, args.seed)
         print(f"fold {f}: loaded in {time.perf_counter() - t0:.0f}s, train rows {len(ctx['train'])}", flush=True)
         for n in names:
-            oof, s = fit_by_group(ctx, GROUPED[n], config_for(n), args.seed, args.n_jobs, args.lr, args.rounds, fit=fit_variant)
+            oof, s = fit_by_group(ctx, GROUPED[n][0], config_for(n), args.seed, args.n_jobs, args.lr, args.rounds, fit=fit_variant)
             oofs[n].append(oof)
             results[n].append(s)
             print(n, "fold", f, json.dumps(s), flush=True)
