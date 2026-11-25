@@ -4,6 +4,12 @@ optional per-AssortmentTier model set as an extra blend member. All eligible tra
 Usage from the improve dir:
   python g8_final/final_retrain.py <proj_root> <out_dir> --n-jobs 40 [--seeds 20260807,20260808,20260809] [--with-pertier]
   python g8_final/final_retrain.py <proj_root> <out_dir> --n-jobs 16 --dry-run-fold 4     # rehearsal on a validation fold
+  --recipe cs02|hp17            registered variant cs02_fix1000 (default) or hp17_fix1000, lr 0.025, 1000 fixed rounds
+  --pertier-recipe cs02|hp17    recipe of the per-tier member (default cs02, i.e. unchanged; hp17 = the pertier17 recipe)
+  --blend-file F [--blend-weight 0.2]
+        blend an external prediction file in log1p space: final = expm1((1-w)*mean_log1p(members) + w*log1p(external)).
+        Real run: F is a CSV (Id, OrderVolume) whose Ids equal the test frame's Ids in the same order, or the script refuses.
+        Dry run: F is an out-of-fold file (fold, HubID, Date, pred) read by (HubID, Date); kept apart from the real-run path.
 
 Real run: trains on every training origin whose label window ends on or before the test forecast origin (2015-06-19), so no label
 window reaches the test window that starts 2015-06-20. Dry run: same code, but the "test frame" is fold N and only origins whose
@@ -40,6 +46,8 @@ SEEDS = (20260807, 20260808, 20260809)
 LEARNING_RATE = 0.025
 ROUNDS = 1000
 RECIPE = "cs02"
+RECIPES = {"cs02": "cs02_fix1000", "hp17": "hp17_fix1000"}  # --recipe -> registered variant in exp_runner.VARIANTS
+BLEND_WEIGHT_DEFAULT = 0.2
 GROUP_COLUMN = "AssortmentTier"
 BLEND_MODES = ("member", "half")
 
@@ -53,11 +61,14 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def final_config() -> Config:
-    """cs02 with a fixed round count; must equal the registered cs02_fix1000 variant."""
-    cfg = replace(VARIANTS[RECIPE], fixed_rounds=ROUNDS)
-    if cfg != VARIANTS["cs02_fix1000"]:
-        raise AssertionError("final config drifted from the cs02_fix1000 variant in exp_runner.py")
+def final_config(recipe: str = RECIPE) -> Config:
+    """The recipe with a fixed round count; must equal its registered <recipe>_fix1000 variant (refuses on drift)."""
+    if recipe not in RECIPES:
+        raise ValueError(f"recipe must be one of {sorted(RECIPES)}")
+    variant = RECIPES[recipe]
+    cfg = replace(VARIANTS[recipe], fixed_rounds=ROUNDS)
+    if cfg != VARIANTS[variant]:
+        raise AssertionError(f"final config drifted from the {variant} variant in exp_runner.py")
     return cfg
 
 
@@ -104,6 +115,76 @@ def combine_members(global_preds: list[np.ndarray], pertier_preds: list[np.ndarr
     if mode == "member":
         return log_mean_blend([*global_preds, *pertier_preds], is_open)
     return log_mean_blend([log_mean_blend(global_preds, is_open), log_mean_blend(pertier_preds, is_open)], is_open)
+
+
+def blend_external(base: np.ndarray, external: np.ndarray, weight: float, is_open: np.ndarray) -> np.ndarray:
+    """final = expm1((1-w) * log1p(base) + w * log1p(external)); closed rows exactly 0, clipped at 0. New array.
+
+    `base` is the already seed-averaged (and optionally per-tier) prediction in volume units, so log1p(base) is the log-space member mean.
+    """
+    weight = float(weight)
+    if not 0.0 <= weight <= 1.0:
+        raise ValueError(f"blend weight must be in [0, 1], got {weight}")
+    base, external = np.asarray(base, dtype=float), np.asarray(external, dtype=float)
+    if base.shape != external.shape or base.shape != np.asarray(is_open).shape:
+        raise ValueError("base, external and IsOpen must have the same length")
+    if not np.isfinite(external).all() or (external < 0).any():
+        raise ValueError("external predictions contain non-finite or negative values")
+    mixed = (1.0 - weight) * np.log1p(np.clip(base, 0, None)) + weight * np.log1p(external)
+    return zero_closed(np.expm1(mixed), is_open)
+
+
+def load_external_test(path: Path, frame_ids: pd.Series) -> np.ndarray:
+    """Real run: external CSV (Id, OrderVolume) -> volumes in test-frame order. Refuses unless the Ids equal the frame's Ids exactly."""
+    table = pd.read_csv(path)
+    if not {"Id", "OrderVolume"} <= set(table.columns):
+        raise ValueError(f"blend file needs columns Id and OrderVolume, found {list(table.columns)}")
+    ids = frame_ids.to_numpy()
+    if len(table) != len(ids) or not np.array_equal(table["Id"].to_numpy(), ids):
+        raise ValueError(f"blend file Id column does not equal the test frame's Ids (rows {len(table)} vs {len(ids)}, or different values/order)")
+    values = table["OrderVolume"].to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("blend file has non-finite values")
+    return values
+
+
+def load_external_oof(path: Path, frame: pd.DataFrame, fold: int) -> np.ndarray:
+    """Dry run only: out-of-fold predictions (fold, HubID, Date, pred) -> volumes aligned to the fold frame by (HubID, Date)."""
+    table = pd.read_csv(path, parse_dates=["Date"])
+    if "fold" in table.columns:
+        table = table[table["fold"] == fold]
+    if table.duplicated(["HubID", "Date"]).any():
+        raise ValueError("blend OOF file has duplicate (HubID, Date) rows")
+    keys = frame[["HubID", "Date"]].assign(Date=lambda d: pd.to_datetime(d["Date"]))
+    merged = keys.merge(table[["HubID", "Date", "pred"]], on=["HubID", "Date"], how="left", validate="one_to_one")
+    if merged["pred"].isna().any():
+        raise ValueError(f"{int(merged['pred'].isna().sum())} fold rows have no prediction in the blend OOF file")
+    values = merged["pred"].to_numpy(dtype=float)
+    if not np.isfinite(values).all():
+        raise ValueError("blend OOF file has non-finite values")
+    return values
+
+
+def resolve_blend(args: argparse.Namespace) -> tuple[Path | None, float]:
+    """(blend file, weight); weight and file must come together, weight in (0, 1]; default weight 0.2."""
+    if args.blend_file is None:
+        if args.blend_weight is not None:
+            raise SystemExit("--blend-weight needs --blend-file")
+        return None, 0.0
+    weight = BLEND_WEIGHT_DEFAULT if args.blend_weight is None else float(args.blend_weight)
+    if not 0.0 < weight <= 1.0:
+        raise SystemExit(f"--blend-weight must be in (0, 1], got {weight}")
+    return Path(args.blend_file), weight
+
+
+def recipe_block(recipe: str, pertier_recipe: str, cfg: Config, lr: float) -> dict:
+    return {"recipe": recipe, "variant": RECIPES[recipe], "pertier_recipe": pertier_recipe, **cfg.__dict__, "learning_rate": lr}
+
+
+def blend_block(mode: str, with_pertier: bool, pertier_seeds: list[int], fallback_rows: int, blend_file: Path | None, weight: float) -> dict:
+    external = None if blend_file is None else {"file": Path(blend_file).name, "sha256": sha256_file(blend_file), "weight": float(weight), "space": "log1p"}
+    return {"mode": mode, "with_pertier": bool(with_pertier), "pertier_seeds": list(pertier_seeds) if with_pertier else [],
+            "pertier_group_column": GROUP_COLUMN, "pertier_fallback_rows": fallback_rows, "external": external}
 
 
 def member_entry(path: Path, best_iteration: int, **extra) -> dict:
@@ -222,11 +303,17 @@ def run(args: argparse.Namespace) -> int:
     pertier_seeds = [int(s) for s in args.pertier_seeds.split(",")] if args.pertier_seeds else seeds[:1]
     if args.with_pertier and not set(pertier_seeds) <= set(seeds):
         raise SystemExit("--pertier-seeds must be a subset of --seeds")
-    cfg = final_config()
+    cfg = final_config(args.recipe)
+    pertier_cfg = final_config(args.pertier_recipe)
+    blend_file, blend_weight = resolve_blend(args)
+    lr = args.lr or LEARNING_RATE
     timings: dict[str, float] = {}
     clock = time.perf_counter
 
     frame = load_target_frame(root, args.dry_run_fold)
+    external = None  # refuse a mismatching blend file before any training time is spent
+    if blend_file is not None:
+        external = (load_external_oof(blend_file, frame, args.dry_run_fold) if dry else load_external_test(blend_file, frame["Id"]))
     origin = pd.Timestamp(frame["ForecastOrigin"].iloc[0])
     first_target = pd.Timestamp(frame["Date"].min())
     columns = [c for c in feature_columns(frame, "all") if c != "HubID_TargetEncoded"]
@@ -234,7 +321,8 @@ def run(args: argparse.Namespace) -> int:
     origins = pd.read_csv(manifest_csv, parse_dates=["origin", "target_start", "target_end"])
     eligible = eligible_origins(origins, origin)
     assert_labels_before(eligible, first_target)
-    print(f"{'DRY RUN fold ' + str(args.dry_run_fold) if dry else 'FINAL'}: origin {origin.date()}, targets from {first_target.date()}, "
+    print(f"{'DRY RUN fold ' + str(args.dry_run_fold) if dry else 'FINAL'} recipe {args.recipe}"
+          f"{'' if blend_file is None else f', blend {blend_file.name} w={blend_weight}'}: origin {origin.date()}, targets from {first_target.date()}, "
           f"{len(eligible)} training origins (labels end {eligible['target_end'].max().date()})", flush=True)
 
     if args.verify_origins:
@@ -272,7 +360,7 @@ def run(args: argparse.Namespace) -> int:
     manifest: dict[str, dict] = {}
     global_preds: dict[int, np.ndarray] = {}
     for seed in seeds:
-        params = lgb_params(cfg, args.lr if args.lr else LEARNING_RATE, seed, args.n_jobs)
+        params = lgb_params(cfg, lr, seed, args.n_jobs)
         path = out / f"lightgbm_s{seed}.txt"
         t0 = clock()
         model = fit_and_save(x_train, y_train, params, path)
@@ -289,7 +377,7 @@ def run(args: argparse.Namespace) -> int:
     fallback_rows = 0
     if args.with_pertier:
         for seed in pertier_seeds:
-            params = lgb_params(cfg, args.lr if args.lr else LEARNING_RATE, seed, args.n_jobs)
+            params = lgb_params(pertier_cfg, lr, seed, args.n_jobs)
             t0 = clock()
             print(f"per-{GROUP_COLUMN} models, seed {seed}", flush=True)
             pred, info = fit_pertier(train, positive, frame, open_idx, feats, cats, params, seed, out, global_preds[seed])
@@ -301,6 +389,10 @@ def run(args: argparse.Namespace) -> int:
             print(f"per-tier seed {seed}: {timings[f'fit_pertier_s{seed}']:.0f}s", flush=True)
 
     final = combine_members(list(global_preds.values()), list(pertier_preds.values()), is_open, args.blend_mode)
+    pre_blend = final
+    if external is not None:
+        np.save(out / "test_pred_members_pre_blend.npy", pre_blend)
+        final = blend_external(pre_blend, external, blend_weight, is_open)
     if dry:
         pred_path = out / f"{stem}_predictions.csv"
         table = submission_frame(pd.Series(np.arange(1, len(frame) + 1)), final)
@@ -310,6 +402,15 @@ def run(args: argparse.Namespace) -> int:
         for seed, p in global_preds.items():
             s = fold_scores(frame["ActualOrderVolume"].to_numpy(float), p, is_open)
             print(f"  global seed {seed}: RMSLE_all {s['rmsle_all']:.5f}", flush=True)
+        if external is not None:
+            actual = frame["ActualOrderVolume"].to_numpy(float)
+            scores_pre = fold_scores(actual, pre_blend, is_open)
+            ext_scores = fold_scores(actual, zero_closed(external, is_open), is_open)
+            print(f"  before blend RMSLE_all {scores_pre['rmsle_all']:.5f}; external alone {ext_scores['rmsle_all']:.5f}; "
+                  f"blended (w={blend_weight}) {scores['rmsle_all']:.5f}", flush=True)
+            for w in (0.1, 0.2, 0.3):
+                r = fold_scores(actual, blend_external(pre_blend, external, w, is_open), is_open)["rmsle_all"]
+                print(f"    weight {w}: RMSLE_all {r:.5f}", flush=True)
         if pertier_preds:
             g = combine_members(list(global_preds.values()), [], is_open)
             print(f"  global-only blend RMSLE_all {fold_scores(frame['ActualOrderVolume'].to_numpy(float), g, is_open)['rmsle_all']:.5f}", flush=True)
@@ -330,15 +431,18 @@ def run(args: argparse.Namespace) -> int:
         "training_origins": len(eligible), "last_label_date": str(eligible["target_end"].max().date()),
         "forecast_origin": str(origin.date()), "first_target_date": str(first_target.date()),
         "timings_s": timings, "submission_sha256": sha256_file(pred_path), "predictions_file": pred_path.name,
-        "config": {"recipe": RECIPE, "variant": "cs02_fix1000", **cfg.__dict__, "learning_rate": args.lr or LEARNING_RATE,
-                   "lgb_params": {k: v for k, v in lgb_params(cfg, args.lr or LEARNING_RATE, seeds[0], args.n_jobs).items() if k not in ("random_state", "n_jobs")}},
-        "blend": {"mode": args.blend_mode, "with_pertier": bool(args.with_pertier), "pertier_seeds": pertier_seeds if args.with_pertier else [],
-                  "pertier_group_column": GROUP_COLUMN, "pertier_fallback_rows": fallback_rows},
+        "recipe": args.recipe, "blend_weight": blend_weight,
+        "blend_file_sha256": None if blend_file is None else sha256_file(blend_file),
+        "config": {**recipe_block(args.recipe, args.pertier_recipe, cfg, lr),
+                   "lgb_params": {k: v for k, v in lgb_params(cfg, lr, seeds[0], args.n_jobs).items() if k not in ("random_state", "n_jobs")}},
+        "blend": blend_block(args.blend_mode, args.with_pertier, pertier_seeds, fallback_rows, blend_file, blend_weight),
         "inputs": {"target_frame": "fold" if dry else "test_forecast_features", "training_origin_manifest_sha256": sha256_file(manifest_csv)},
         "versions": _versions(),
     }
     if scores:
         manifest["_run"]["dry_run_scores"] = scores
+        if external is not None:
+            manifest["_run"]["dry_run_scores_before_blend"] = scores_pre
     manifest_path.write_text(json.dumps(manifest, indent=2, default=str))
     print(json.dumps({k: manifest["_run"][k] for k in ("mode", "train_rows", "submission_sha256")}, indent=2), flush=True)
     return 0
@@ -377,6 +481,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--with-pertier", action="store_true", help="add the per-AssortmentTier model set as an extra blend member")
     ap.add_argument("--pertier-seeds", default="", help="comma list, subset of --seeds (default: the first seed only)")
     ap.add_argument("--blend-mode", choices=BLEND_MODES, default="member", help="member: seeds and per-tier sets in one equal log mean; half: 50/50 of the two averages")
+    ap.add_argument("--recipe", choices=sorted(RECIPES), default=RECIPE, help="cs02 -> cs02_fix1000 (default); hp17 -> hp17_fix1000")
+    ap.add_argument("--pertier-recipe", choices=sorted(RECIPES), default=RECIPE, help="recipe of the per-tier member (default cs02; hp17 = pertier17)")
+    ap.add_argument("--blend-file", type=Path, default=None, help="external predictions to blend in log1p space (real run: CSV Id,OrderVolume; dry run: OOF file)")
+    ap.add_argument("--blend-weight", type=float, default=None, help=f"weight of the external file (default {BLEND_WEIGHT_DEFAULT} when --blend-file is given)")
     ap.add_argument("--dry-run-fold", type=int, default=None, help="rehearse on validation fold N instead of the real test frame")
     ap.add_argument("--lr", type=float, default=LEARNING_RATE)
     ap.add_argument("--no-verify-origins", dest="verify_origins", action="store_false", help="skip SHA-256 check of origin files against the manifest")
