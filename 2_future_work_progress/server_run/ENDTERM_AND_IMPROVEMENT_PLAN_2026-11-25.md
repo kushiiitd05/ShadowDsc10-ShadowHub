@@ -433,3 +433,37 @@ Delta vs `cs02` of the same seed (negative = better), RMSLE:
 ## 24. G3c (event-day features) and a limit on what holiday features can do (25 Nov 15:50)
 
 55 tests pass; 36 `g3c_` columns in four groups (holiday history incl. same-type previous holiday, calendar counts and distances for holiday / school closure / promo, open-Sunday profile, hub promo ratio). **Finding that limits the whole idea:** `RegionalHoliday` is a code (1 ordinary holiday, 2 Easter Friday/Monday, 3 Christmas); **the real test window (2015-06-20 to 07-31) has `RegionalHoliday` = 0 everywhere**, and so does fold 5 (summer 2014). Any gain from the holiday group can only be measured on folds 3 and 4 and cannot carry over to the final test. The calendar's school-closure and promo parts and the Sunday profile still apply to summer. Therefore: G3c runs on folds 3, 4, 5, 2; only the groups that help on fold 5 are candidates, and a gain that appears only on folds 3–4 through holiday columns is recorded but not adopted.
+
+## 25. Fold 5 (summer 2014) and G3c verdicts (25 Nov 17:50)
+
+**Fold 5, three seeds each, RMSLE on all rows (excluding open-zero rows in brackets).** Fold 5 has many open-but-zero rows, so "all" is about 0.06 above the "excl" number for every model. Differences between variants are small compared with that.
+
+| variant | 3 seeds (all rows) | 3-seed log-mean | mean excl open0 |
+|---|---|---|---|
+| `base` (colsample 0.8) | 0.1747 / 0.1766 / 0.1731 | 0.1736 | 0.1163 |
+| `cs02` | 0.1741 / 0.1754 / 0.1811 | 0.1754 | 0.1193 |
+| `cs02_tweedie` | 0.1780 / 0.1767 / 0.1839 | 0.1782 | 0.1224 |
+| `pertier` | 0.1751 / 0.1751 / 0.1742 | 0.1735 | 0.1162 |
+| `g3b_all_plus_g3` | 0.1732 / 0.1744 / 0.1705 | 0.1714 | 0.1131 |
+| `g3b_all` | 0.1832 / 0.1789 / 0.1735 | 0.1766 | 0.1216 |
+
+- Seed spread on fold 5 is large (`cs02` 0.1741–0.1811), larger than on folds 1–4. A fold-5 gap under about 0.003 is noise.
+- `cs02` does **not** show its folds 1–4 gain on summer: `base` is 0.0018 better on the 3-seed average, inside the noise. It is not worse by enough to change the recipe, because the 4-fold CV gain (0.1312 → 0.1190) is large and consistent. This stays a caveat, not a reversal. The final model averages seeds, which removes most of this variance.
+- `pertier` is the steadiest member on fold 5 (spread 0.0009) and matches `base`. Keeps its place as an optional blend member.
+- `g3b_all_plus_g3` is the best fold-5 entry (0.1714, −0.0040 vs `cs02`), but `g3b_all` alone is worse than `cs02`. Together with folds 1–3 (fold 3 flips, fold 2 worse, fold 1 breaks on gap hubs) this fails the gate (it passes fold 4 and fold 5 only). **Not adopted.** Blends of `cs02` with it give 0.1728 vs 0.1754 alone, which is the same size as the seed noise, so the blend is not adopted either.
+
+**G3c (seed 20260807, RMSLE all rows; `cs02` reference from the same seed: fold 2 0.1202, fold 3 0.1109, fold 4 0.1020, fold 5 0.1741 [0.1151 excl]).**
+
+| variant | fold 3 | fold 4 | fold 5 | fold 2 |
+|---|---|---|---|---|
+| `g3c_calendar` | 0.1178 | 0.1052 | 0.1742 | 0.1209 |
+| `g3c_sunday` | 0.1164 | 0.1048 | 0.1791 | 0.1263 |
+| `g3c_promo` | 0.1188 | 0.1055 | 0.1758 | 0.1201 |
+| `g3c_holiday` | 0.1122 | 0.1032 | 0.1744 | 0.1196 |
+| `g3c_all` | 0.1107 | 0.1044 | 0.1806 | 0.1190 |
+| `g3c_all_plus_g3b` | 0.1157 | 0.1031 | 0.1749 | 0.1190 |
+
+- Every group is worse than `cs02` on fold 3 (except `g3c_all`, equal) and on fold 4, equal or worse on fold 5, and within noise on fold 2. **No G3c group is adopted.** The event-day features add columns without adding information the trees did not already get from `DayOfWeek`, `Promo` and the existing holiday flags.
+- Feature work (G3, G3b, G3c) is closed: no feature set passes the gate. Recipe stays `cs02` (lr 0.025, 1000 fixed rounds, seed-averaged), with `pertier` as the optional member.
+
+**Still running or queued:** MLP on Vinayak (torch now cu128, CUDA works; 11 tests pass; smoke then full fold 1–4 run started 17:45) and the blend check against `cs02`.
