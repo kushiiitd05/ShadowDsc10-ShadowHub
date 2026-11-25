@@ -48,3 +48,11 @@ def test_recency_weights_halve_at_half_life() -> None:
     w = recency_weights(origins, np.datetime64("2015-01-02"), 365.0)
     assert w[0] == pytest.approx(1.0)
     assert w[1] == pytest.approx(0.5)
+
+
+def test_recency_weights_accept_nanosecond_origin() -> None:
+    # regression: the harness passes a datetime64[ns] validation origin; weights must still be in day units
+    origins = np.array(["2015-01-02", "2014-01-02"], dtype="datetime64[D]")
+    w = recency_weights(origins, np.datetime64("2015-01-02T00:00:00.000000000"), 365.0)
+    assert w[0] == pytest.approx(1.0)
+    assert w[1] == pytest.approx(0.5)
