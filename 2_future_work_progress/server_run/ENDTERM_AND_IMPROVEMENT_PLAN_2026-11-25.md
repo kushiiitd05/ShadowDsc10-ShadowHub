@@ -192,3 +192,23 @@ Mean RMSLE over folds 2–4; same-seed reference `cs02` in the first column.
 - No variant passes the gate (0.0024). The best stack (`cs02_l10_127`) gains 0.0019 on seed 07 but 0.0002 on seed 09, and is worse on fold 2 of seed 09, so it fails the "better on every fold and seed" challenger test. Dropping target encoding helps on seed 07 and fold 1 and hurts on seed 09.
 - **Decision: `cs02` stays champion; no challenger.** The round-2 single-seed gains were mostly noise. Fold 1 (a different season) favours the stacks, so `cs02_l10_127` and `cs02_no_te_l10_127` are kept as optional extras for G4b multi-seed bagging, not as the recipe.
 - Baseline-ensemble jobs B1 (`base`, production Tweedie, production CatBoost) and B2 (the same on `cs02`) are running on folds 1–4; blends are computed offline by `improve/blend.py`.
+
+## 13. Baseline ensemble versus champion ensemble (25 Nov, 13:40) — B1 and B2 complete
+
+Same folds (1–4), same seed 20260807, same early-stopping holdout rule; blend = log-space mean of the three members (CatBoost production settings, LightGBM, production-style Tweedie with raw target and log link). LightGBM screening settings (lr 0.05, ≤1500 rounds) are used for both rows, so the comparison is like for like; the original production run used lr 0.025 and 3000 rounds.
+
+| Recipe | Member | Fold 1 | Fold 2 | Fold 3 | Fold 4 | Mean |
+|---|---|---|---|---|---|---|
+| old (`base`) | LightGBM | 0.1586 | 0.1259 | 0.1322 | 0.1081 | 0.1312 |
+| old | Tweedie | 0.1514 | 0.1258 | 0.1359 | 0.1106 | 0.1309 |
+| old | CatBoost | 0.1445 | 0.1335 | 0.1305 | 0.1050 | 0.1284 |
+| **old, 3-model blend** | | 0.1412 | 0.1261 | 0.1286 | 0.1041 | **0.1250** |
+| new (`cs02`) | LightGBM | 0.1377 | 0.1215 | 0.1129 | 0.1039 | 0.1190 |
+| new | Tweedie | 0.1414 | 0.1248 | 0.1095 | 0.1042 | 0.1200 |
+| new | CatBoost | 0.1378 | 0.1241 | 0.1225 | 0.1010 | 0.1213 |
+| **new, 3-model blend** | | 0.1356 | 0.1215 | 0.1129 | 0.1010 | **0.1178** |
+
+- **Old best ensemble on the corrected folds: 0.1250. New champion ensemble: 0.1178. Gain −0.0072, better on all four folds** (−0.0056, −0.0046, −0.0157, −0.0031); above the 0.0024 gate and about 7× the seed noise.
+- The recipe gain is larger for the single LightGBM (−0.0122) than for the blend (−0.0072): blending already removed part of the variance that feature subsampling removes.
+- On the champion recipe the blend improves on LightGBM alone by only 0.0012 (it ties on folds 2 and 3). Within the noise: keep it only if the end-term time budget allows; the LightGBM member alone is the fallback.
+- Members are not yet tuned on the champion recipe (CatBoost uses `rsm 0.2`, Tweedie uses the same feature fraction); that is stage G4a.
