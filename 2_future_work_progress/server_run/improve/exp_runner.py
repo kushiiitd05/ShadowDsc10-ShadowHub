@@ -38,6 +38,7 @@ class Config:
     min_child: int = 80
     reg_lambda: float = 1.0
     extra_trees: bool = False
+    fixed_rounds: int | None = None  # no early stopping: fit exactly this many rounds
     model: str = "lightgbm"        # lightgbm | catboost (production settings: depth 8, lr 0.04, l2 5)
 
 
@@ -73,10 +74,24 @@ VARIANTS: dict[str, Config] = {
     "cs02_no_te_l10_127": Config(colsample=0.2, subsample_freq=1, te=False, reg_lambda=10.0, num_leaves=127),
     "cs02_l10_127": Config(colsample=0.2, subsample_freq=1, reg_lambda=10.0, num_leaves=127),
     # baseline ensemble members with the production settings, on the corrected folds (run with --lr 0.025 --rounds 3000 for LightGBM)
+    # fixed round counts (no early stopping): best iteration moves between ~100 and ~2500 across folds/seeds, so the stopping point is itself noise
+    "cs02_fix300": Config(colsample=0.2, subsample_freq=1, fixed_rounds=300),
+    "cs02_fix600": Config(colsample=0.2, subsample_freq=1, fixed_rounds=600),
+    "cs02_fix1000": Config(colsample=0.2, subsample_freq=1, fixed_rounds=1000),
     "prod_tweedie": Config(target="raw", objective="tweedie"),
     "prod_cat": Config(model="catboost"),
     "cs02_tweedie": Config(target="raw", objective="tweedie", colsample=0.2, subsample_freq=1),
     "cs02_cat": Config(model="catboost", colsample=0.2),
+    # round 4: neighbours of the hyper-parameter search winner hp_017 (colsample 0.15, 255 leaves, min_child 160, lambda 24.1)
+    "hp17": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1),
+    "hp17_l10": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=10.0),
+    "hp17_l50": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=50.0),
+    "hp17_511": Config(colsample=0.15, subsample_freq=1, num_leaves=511, min_child=160, reg_lambda=24.1),
+    "hp17_mcs320": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=320, reg_lambda=24.1),
+    "hp17_cs01": Config(colsample=0.10, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1),
+    "hp17_cs02": Config(colsample=0.20, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1),
+    "hp17_127": Config(colsample=0.15, subsample_freq=1, num_leaves=127, min_child=160, reg_lambda=24.1),
+    "hp17_fix1000": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1, fixed_rounds=1000),
 }
 
 
@@ -196,11 +211,13 @@ def fit_variant(ctx: dict, cfg: Config, seed: int, n_jobs: int, lr: float, round
     if cfg.model == "catboost":
         model, predict_raw, best_iteration = fit_catboost_model(x_train, y_train, x_hold, y_hold, weight, cfg, seed, n_jobs, rounds)
     else:
+        if cfg.fixed_rounds:
+            params["n_estimators"] = cfg.fixed_rounds
         model = lgb.LGBMRegressor(**params)
-        model.fit(x_train, y_train, sample_weight=weight, eval_set=[(x_hold, y_hold)],
-                  callbacks=[lgb.early_stopping(100, verbose=False)], **kwargs)
+        stop = [] if cfg.fixed_rounds else [lgb.early_stopping(100, verbose=False)]
+        model.fit(x_train, y_train, sample_weight=weight, eval_set=[(x_hold, y_hold)], callbacks=stop, **kwargs)
         predict_raw = lambda frame: model.predict(frame, raw_score=True)  # noqa: E731
-        best_iteration = int(model.best_iteration_ or rounds)
+        best_iteration = int(cfg.fixed_rounds or model.best_iteration_ or rounds)
     fit_seconds = time.perf_counter() - start
 
     offset = 0.0
