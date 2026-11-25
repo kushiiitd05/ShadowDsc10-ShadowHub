@@ -467,3 +467,18 @@ Delta vs `cs02` of the same seed (negative = better), RMSLE:
 - Feature work (G3, G3b, G3c) is closed: no feature set passes the gate. Recipe stays `cs02` (lr 0.025, 1000 fixed rounds, seed-averaged), with `pertier` as the optional member.
 
 **Still running or queued:** MLP on Vinayak (torch now cu128, CUDA works; 11 tests pass; smoke then full fold 1–4 run started 17:45) and the blend check against `cs02`.
+
+## 26. MLP (G4) verdict (25 Nov 18:40)
+
+Vinayak, torch 2.11 cu128, 40 epochs, seed 20260807, folds 1–4. MLP alone: 0.2454 / 0.1825 / 0.1200 / 0.1095 (mean 0.1643) vs `cs02` 0.1377 / 0.1215 / 0.1129 / 0.1039 (mean 0.1190). Log-space blend with `cs02`:
+
+| MLP weight | fold 1 | fold 2 | fold 3 | fold 4 |
+|---|---|---|---|---|
+| 0 (`cs02`) | 0.1377 | 0.1215 | 0.1129 | 0.1039 |
+| 0.1 | 0.1423 | 0.1215 | 0.1115 | 0.1032 |
+| 0.2 | 0.1489 | 0.1232 | 0.1105 | 0.1028 |
+| 0.3 | 0.1573 | 0.1266 | 0.1101 | 0.1026 |
+
+Helps folds 3–4 by at most 0.003, hurts folds 1–2. Fails the gate (needs ≥2 of 3 dev folds). **MLP not adopted.** Model-family diversity (CatBoost, Tweedie, MLP) has now been tried three times with no gain over seed-averaged LightGBM.
+
+Random hyper-parameter search (G6, 20 configs around `cs02`, folds 1–4, seed 20260807) started on Manjot at 17:44.
