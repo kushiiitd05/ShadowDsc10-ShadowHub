@@ -644,3 +644,22 @@ Excluding open-zero rows, 3-seed average: fold 1 −0.0005, fold 2 +0.0041, fold
 **Stack in the final setting** (`hp17` fixed rounds, 3 seeds, + TabPFN-TS at weight w; gain over `cs02` with early stopping at the same seed; positive = better). 3-seed average gain by fold, w 0.1 / 0.2 / 0.3: fold 2 +0.0032 / +0.0043 / +0.0047; fold 3 +0.0039 / +0.0031 / +0.0018; fold 4 +0.0021 / +0.0029 / +0.0031; fold 5 (935 hubs) +0.0043 / +0.0053 / +0.0060. Folds 2–4 mean per seed at w 0.2: 0.0044 / 0.0044 / 0.0039 (3-seed average 0.0034); fold 5 per seed at w 0.2: +0.0031 / +0.0044 / +0.0115. Excluding open-zero rows the numbers are equal or larger (w 0.2: folds 2–4 average +0.0035, fold 5 +0.0084). The three weights give nearly the same gain (0.0031–0.0034), so the exact weight is not critical. `hp17` alone in this setting: folds 2–5 +0.0014 / +0.0041 / +0.0009 / +0.0029.
 
 **Caveat before adoption:** the baseline here is `cs02` with early stopping at lr 0.05. The like-for-like baseline is `cs02` at lr 0.025 with 1000 fixed rounds (one seed: 0.1174 against 0.1190, so up to about 0.0016 of the gain may come from the setting itself). That baseline, 3 seeds on folds 1–5, is running (`exp_out_CSF*`). The gate verdict (§38) is taken against it. Per-tier on the `hp17` recipe (3 seeds, folds 2–4, lr 0.025, early stopping capped at 1000 rounds) is also running (`exp_out_PT17*`).
+
+## 38. Gate table against the like-for-like baseline, 26 Nov 05:00: the stack passes
+
+Baseline = `cs02` with lr 0.025 and 1000 fixed rounds (the final-retrain setting), seeds 07/08/09, run on folds 1–5 (`exp_out_CSF*`); 4-fold mean of the 3-seed average 0.1170 (excluding open-zero rows 0.1112). Candidates use the same setting: `hp17` fixed rounds, 3 seeds; TabPFN-TS (deterministic, one realisation, 365-day context) blended in log space at weight 0.2. Gain = baseline minus candidate, same seed (positive = better). Fold 5 uses the 935 hubs with a full 42-day block, because TabPFN-TS predictions exist only for those.
+
+| Candidate | fold 1 | fold 2 | fold 3 | fold 4 | folds 2–4 mean per seed (07 / 08 / 09) | 3-seed avg folds 2–4 | folds improving (per seed) | fold 5 per seed (07 / 08 / 09) |
+|---|---|---|---|---|---|---|---|---|
+| `hp17` alone | +0.0058 | +0.0005 | +0.0045 | +0.0007 | 0.0020 / 0.0018 / 0.0017 | **0.0019** | 3, 2, 2 | +0.0014 / +0.0054 / +0.0047 |
+| `hp17` + TabPFN-TS 0.2 | −0.0024 | +0.0035 | +0.0035 | +0.0027 | 0.0035 / 0.0034 / 0.0033 | **0.0032** | 3, 3, 3 | +0.0042 / +0.0083 / +0.0071 |
+| `cs02` + TabPFN-TS 0.2 (attribution) | −0.0068 | +0.0028 | +0.0007 | +0.0023 | — | 0.0019 | — | +0.0038 (3-seed avg) |
+
+Excluding open-zero rows (3-seed average): `hp17` alone folds 2–4 +0.0019; the stack folds 2–4 +0.0033 (fold 2 +0.0037, fold 3 +0.0035, fold 4 +0.0028), fold 5 +0.0065 / +0.0128 / +0.0110 per seed.
+
+**Verdicts**
+- **`hp17` alone: does not pass.** Folds 2–4 mean 0.0019 (< 0.0024); improves only 2 of 3 folds on two seeds; fold 2 and fold 4 are flat. Its gain is concentrated on folds 1 and 3.
+- **`hp17` + TabPFN-TS at 0.2: passes the gate.** Mean gain over folds 2–4 is 0.0032 (each seed 0.0033–0.0035, above 0.0024); all three folds improve on every seed; same sign on all seeds; holds excluding open-zero rows (0.0033); fold 5 positive on every seed. Attribution: TabPFN-TS adds about 0.0019 on top of `cs02`, `hp17` adds about 0.0013 inside the stack (the two pieces are roughly additive).
+- **Per-tier on the `hp17` recipe: not adopted.** Seeds 07 / 08 / 09, folds 2–4 mean 0.1125 / 0.1111 / 0.1119, against 0.1099 for `hp17` seed 07 alone; worse than the plain model.
+
+**Limits stated with the verdict:** (1) fold 1 (winter, includes year-end) is worse by 0.0024 for the stack; the test window is summer and fold 5 is positive, but this is unresolved; (2) `hp17` was the best of 19 configs on the same folds and its seed-07 gain shrank on fresh seeds; (3) the blend weight 0.2 was chosen from {0.1, 0.2, 0.3} on folds 2–4 including fold 4; the curve is flat (0.0031–0.0034); (4) TabPFN-TS was configured on a fold-4 100-hub smoke (small leak into fold 4); (5) fold 4 is also the end-term test window and was used in earlier selection; (6) fold 5 numbers cover 935 of 1,115 hubs. **Decision (provisional, CV only): freeze candidate = `hp17` fixed-1000 (3 seeds) + TabPFN-TS 0.2; fallback = `cs02` fixed-1000 (3 seeds).** Final confirmation after the TabPFN context sweep, the Optuna lane and the rehearsal retrain; written decision by 2 Dec.
