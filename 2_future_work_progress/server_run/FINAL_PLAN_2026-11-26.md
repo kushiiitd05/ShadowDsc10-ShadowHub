@@ -110,3 +110,16 @@ Decision rule if nothing finishes in time: the freeze candidate is `hp17` (3 see
 8. **Resource control:** while the rehearsal runs on Manjot, Optuna A uses at most 24 threads (rehearsal 16); memory is watched; exclusive timing runs for the end-term happen only with the server idle (1–2 Dec).
 9. **Wording:** folds 1, 4 and 5 are confirmation diagnostics, not untouched holdouts (all were used in earlier selection); fold 4 is also the end-term test window.
 10. **At the decision point** the report contains: the exact gate table, per-fold and per-seed results, the experiment count (all trials + variants), compute cost, the blend-weight ablation and the recommendation. The search is not extended if a candidate narrowly misses. If `hp17` + TabPFN-TS 0.2 has passed every condition (it did against the like-for-like baseline, §38, with the limits stated there), it remains the preferred freeze candidate; anything else stays provisional until its full evidence exists.
+
+## H. Overnight run sheet (26 Nov 01:30 to 10:00): what is tuned, in which order
+
+| Item | Tuned? | How | When |
+|---|---|---|---|
+| LightGBM settings (colsample, leaves, min child, lambda) | **yes** | Optuna A (Manjot) + B (Vinayak), pooled up to 80 trials, scored on the blend at w 0.2, folds 2–3 | running until 10:00 |
+| TabPFN-TS context length (the "duration") | **yes** | sweep 365 / 730 / 540 on folds 1–5; mix of contexts as an option | 365 and 730 done; 540 running on the GPU |
+| Mix of contexts (share of 365 vs 730 vs 540) and the blend weight w | **yes, after the LightGBM search** | offline grid on saved predictions of the best LightGBM recipe; chosen on folds 2–3, confirmed on folds 1, 4, 5 | after 10:00 |
+| LightGBM seeds (3, or 5 if the gain is above noise) | yes (final averaging) | equal-compute comparison with a top-3 average | after 10:00 |
+| TabPFN-TS internal settings (backbone, covariate set) | no | fixed (TabPFN v2, same covariates as the dev folds) | out of scope |
+| Per-tier, Chronos, MLP, TiDE, NHITS | no | closed with verdicts, no gain | closed |
+
+Rules for the quiet period: no new jobs on either server apart from the four running (Optuna A, Optuna B, TabPFN-TS 540 on the GPU, the second rehearsal on Manjot, which ends within about 15 minutes); no code or file changes on the servers; results are only read (pulls and counts), never recomputed there. At 10:00 both studies stop; the decision steps in section F then run in the order written there.
