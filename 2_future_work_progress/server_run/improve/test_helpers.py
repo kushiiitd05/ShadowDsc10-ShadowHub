@@ -56,3 +56,13 @@ def test_recency_weights_accept_nanosecond_origin() -> None:
     w = recency_weights(origins, np.datetime64("2015-01-02T00:00:00.000000000"), 365.0)
     assert w[0] == pytest.approx(1.0)
     assert w[1] == pytest.approx(0.5)
+
+
+def test_raw_tweedie_round_trip_is_log_link() -> None:
+    # production Tweedie fits raw order volume with a log link and no init_score: prediction = exp(raw score)
+    y = np.array([10.0, 6000.0])
+    level = np.array([5.0, 5500.0])
+    assert np.allclose(encode_target(y, level, "raw"), y)
+    raw_score = np.log(y)
+    assert np.allclose(decode_prediction(raw_score, level, "raw"), y)
+    assert decode_prediction(np.array([-1000.0]), level[:1], "raw")[0] == pytest.approx(0.0)
