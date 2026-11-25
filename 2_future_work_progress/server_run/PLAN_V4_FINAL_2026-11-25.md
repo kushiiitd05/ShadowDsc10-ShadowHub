@@ -1,6 +1,6 @@
 # Plan v4 (final), 25 Nov 2026
 
-Supersedes v3 (section 8 of `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-24.md`). Nothing from v3 is dropped: every stage G0–G5, every outside-review idea (section 8.4) and the end-term track stay. This file adds measured results, baselines, a fixed decision rule, a per-server queue and the calendar. Submission 8 Dec; presentations 9–10 Dec; **model freeze 3 Dec**.
+Supersedes v3 (section 8 of `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-25.md`). Nothing from v3 is dropped: every stage G0–G5, every outside-review idea (section 8.4) and the end-term track stay. This file adds measured results, baselines, a fixed decision rule, a per-server queue and the calendar. Submission 8 Dec; presentations 9–10 Dec; **model freeze 3 Dec**.
 
 ## 1. Baselines (what we have, what we lack)
 
