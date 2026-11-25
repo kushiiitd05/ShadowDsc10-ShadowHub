@@ -1,4 +1,4 @@
-# End-term and improvement plan v2 (2026-11-24)
+# End-term and improvement plan (started 2026-11-24, updated 2026-11-25; the final plan v4 is `PLAN_V4_FINAL_2026-11-25.md`)
 
 Supersedes the "Improvement work (later)" notes in `STATUS.md`. `improvement_plan/IMPROVEMENT_PLAN.md` stays the long-form phase list; this file records what changed after the 24 Nov verification round and what is running.
 Everything marked VERIFIED below was recomputed locally from the raw files, the committed metrics or the code. Anything else is labelled as a claim from an outside review and is not yet confirmed.
