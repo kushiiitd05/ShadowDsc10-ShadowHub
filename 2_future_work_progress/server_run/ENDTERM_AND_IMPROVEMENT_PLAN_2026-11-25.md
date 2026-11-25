@@ -321,3 +321,28 @@ Mean RMSLE over folds 1–4, seed 20260807, against `cs02` 0.1190 (folds 0.1377 
 - **Fold 1 breaks with the weekday × promo group:** the forecast origin 2015-01-02 sits right after the 184-day gap (to 2014-12-31) of 180 hubs, so their last 8 weeks have no observations, the medians are missing or stale and the training origins do not look like this. This is the failure the gap-aware group (G3b, next round) is meant to fix, so G3b is now more important than it looked.
 - `dedupe_only` is neutral; it is kept as an option to shorten fit times, not as an improvement.
 - Stage G3 is closed except the gap-aware / year-ago / peer round (G3b), which is being written.
+
+## 18. Per-group models (1b.10), 25 Nov 15:30
+
+One `cs02` LightGBM per group, stitched; groups with fewer than 20,000 training rows share one pooled model. Folds 1–4, seed 20260807.
+
+| Variant | Mean | Folds 1 / 2 / 3 / 4 |
+|---|---|---|
+| `cs02` (global) | 0.1190 | 0.1377 / 0.1215 / 0.1129 / 0.1039 |
+| per HubFormat | 0.1198 | 0.1397 / 0.1214 / 0.1138 / 0.1042 |
+| **per AssortmentTier** | **0.1178** | **0.1316** / 0.1197 / 0.1128 / 0.1068 |
+
+Equal-weight log-mean blends:
+
+| Blend | Mean | Folds 1 / 2 / 3 / 4 |
+|---|---|---|
+| `cs02` s07 only | 0.1190 | 0.1377 / 0.1215 / 0.1129 / 0.1039 |
+| `cs02` s07 + s08 (2-seed average, size-matched control) | 0.1176 | 0.1350 / 0.1199 / 0.1125 / 0.1030 |
+| `cs02` s07 + per-tier | 0.1168 | 0.1327 / 0.1190 / 0.1114 / 0.1042 |
+| `cs02` 3-seed average | 0.1173 | 0.1340 / 0.1194 / 0.1124 / 0.1035 |
+| `cs02` 3-seed + per-tier | **0.1165** | 0.1322 / 0.1185 / 0.1117 / 0.1037 |
+| `cs02` 3-seed + per-tier + per-format | 0.1165 | 0.1327 / 0.1185 / 0.1116 / 0.1032 |
+
+- The per-tier model alone is −0.0012 vs `cs02`, mostly from fold 1 (−0.0061), the fold right after the data gap; per-format is worse.
+- Mixing a per-tier model with the global one beats the size-matched seed average by about 0.0008 (0.1168 vs 0.1176; 0.1165 vs 0.1173). That is below the 0.0024 gate and above the seed spread (0.0005): **keep as an optional member**, decide after the seed-08/09 per-tier runs (running).
+- Per-format adds nothing on top of per-tier.
