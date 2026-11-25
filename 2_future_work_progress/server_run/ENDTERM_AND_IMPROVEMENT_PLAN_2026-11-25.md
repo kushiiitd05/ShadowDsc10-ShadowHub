@@ -563,3 +563,20 @@ Gain over `cs02` (positive = better; mean of seeds 07/08/09):
 - Real-run sanity path run with the control submission as both prediction and reference: all checks pass, Id order matches the test frame.
 - Preflight on the real test frame: 37 origins whose labels end 2015-06-19 (one day before the test window), 341 feature columns present.
 - Estimated wall time for the real retrain on Manjot with 40 cores: 30–40 min (3 seeds + one per-tier set), 50–60 min with three per-tier seeds, about 15 min of it single-threaded loading.
+
+## 32. SVD, two-stage, peer residuals, shift adaptation, reconciliation, regime experts (items 7–9), 25 Nov 22:30: none adopted
+
+66 tests pass (`improve/g12_misc/`, one module per item). Gain = `cs02` minus variant RMSLE (positive = better); `cs02` per fold 0.1377 / 0.1215 / 0.1129 / 0.1039; gate 0.0024 on ≥ 2 of 3 dev folds (2, 3, 4).
+
+| Item | Design | Result | Verdict |
+|---|---|---|---|
+| A SVD denoising | rank 14, `g12a_*` features, folds 3–4, seed 07 | fold 3 −0.0054, fold 4 0.0000 | fails; folds 1, 2, 5 not run |
+| B two-stage | cross-fitted weekly total feeds the day model, folds 3–4 | full −0.0005 / −0.0016; minimal +0.0010 / +0.0002 | fails |
+| C peer residuals (offline, folds 2–4) | same tier × format peers | about −0.0001 per fold | fails |
+| | correlation peers (corr5, 28-day window) | +0.0009 / +0.0004 / −0.0001 | fails |
+| | own residual + corr5 | +0.0027 / +0.0015 / +0.0007 | challenger, 1 of 3 folds, not adopted |
+| D shift adaptation (offline, 14-day window, fitted beta ≈ 0.3) | +0.0016 / +0.0011 / +0.0013 (other windows +0.0012 / +0.0015 / +0.0010) | positive on every fold and seed but misses the gate; literal beta = 1 hurts (−0.017 / −0.004 / −0.003); needs an extra previous-origin forecast at deployment | weak challenger, not adopted |
+| E hierarchical reconciliation | fitted shrink weights 0 or negative | gain about 0.0000 on every fold | fails |
+| F regime experts | hard-gate blend −0.0066 / −0.0015; half-weight −0.0021 / +0.0005; special-rows-only −0.0004 / +0.0003 | open Sunday/holiday rows are only 1.7–3% of squared error, so the ceiling is about 0.0016 | fails |
+
+Seed-agreement and open-zero checks were done for C, D, E; A, B, F stopped at folds 3–4 on seed 07 because they already failed. The ledger's waiting list (peer residuals, regime experts, reconciliation, shift adaptation) is now closed with verdicts.
