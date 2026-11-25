@@ -229,3 +229,45 @@ Run order once the servers are reachable (each job in its own output folder, `no
 3. Server A (GPU): `g4_runner.py --folds 1,2,3,4 --epochs 40 --device cuda`, then `blend.py` on `cs02,cs02_tweedie,cs02_cat,mlp`.
 4. A candidate that passes the gate on seed 20260807 is repeated on seeds 08 and 09 before it becomes champion.
 Running now (independent of the VPN): server A `et_full` (end-term sampling, 5 repetitions × 7 sizes, LightGBM and ridge, rows and columns); server B seed-08 and seed-09 champion-recipe blends and a lr-0.025/3000-round run for the final retrain settings.
+
+## 15. Leftover-items ledger (25 Nov, 14:00): what remains untested from every plan version
+
+Offline checks run on the saved fold predictions (pooled over folds 1–4, leave-one-fold-out):
+
+| Item | Old recipe | New recipe (`cs02`) | Verdict |
+|---|---|---|---|
+| Equal-weight log-mean blend (baseline) | 0.1257 | 0.1184 | keep |
+| 2.2 non-negative blend weights (NNLS), held-out fold | 0.1251 | 0.1192 | no gain on the new recipe (worse): **keep equal weights** |
+| 1b.4 calibration `log1p(y) ≈ a + b·ŷ`, held-out fold | 0.1285 | 0.1207 | worse on both: **drop** |
+
+(Pooled RMSE differs slightly from the mean of fold scores in section 13 because folds have different row counts.)
+
+| Plan item | Origin | Status |
+|---|---|---|
+| 0.1, 0.4, 0.5, 0.6 origins rebuilt, cross-fitted encoding, holdout early stopping, extra metrics | long plan | done in the harness |
+| 0.2 schema assertion in `model_pipeline.py` | long plan | left (low value; harness bypasses it) |
+| 0.3 season-matched fold 2014-06-19 | long plan | **left** |
+| 0.8 CV ranks CatBoost-alone below the 3-model blend like the earlier public points did | long plan | consistent (0.1284 vs 0.1250); closed |
+| 1.1 level target, 1.2 offset, 1.3 recency | long plan | tested, refuted/no gain |
+| 1.4 / 1b.1 per-hub ridge trend; 1b.3 weekday × promo medians; 1b.7 closure counters; 1b.8 region proxy (format/tier) | long plan | **running** (G3) |
+| 1b.2 summer-2014 incomplete origins (and the season-filtered member) | long plan | **left**: needs a change to the origin builder |
+| 1b.5 holiday / school-closure counts this, last, next week | long plan | **left** (feature code) |
+| 1b.6 hub ratio features (promo lift, Saturday ratio, open share) | long plan | **left** (feature code) |
+| 1b.8 region clusters from identical holiday/closure dates | long plan | **left** |
+| 1b.9 feature subsampling | long plan | done: champion |
+| 1b.10 per-HubFormat models blended with the global one | long plan | **left** |
+| 2.1 three seeds per backend | long plan | **running** (seeds 08, 09) |
+| 2.2 NNLS weights | long plan | done: refuted |
+| 2.4 Optuna search (≤ 40 trials per backend, folds 3–4 then check 1–2) | long plan | **left** |
+| 3.1 Chronos-2 zero-shot, 3.1b TabPFN-TS | long plan | **left** (3.1 pilot only; 3.1b only if time) |
+| 3.2 TiDE / NHITS | long plan | **left** (cut first) |
+| 3.3 entity-embedding MLP | long plan | code ready, torch installing |
+| 4 error analysis by segment; permutation-importance pruning | long plan | **left** (offline from saved predictions, cheap) |
+| 5 final retrain, saved weights, sanity checks | long plan | **left**, due 3 Dec |
+| Hurdle model | v3 | dropped: ≤ 1 open-zero row per dev fold |
+| Horizon split / long-window-only | v3 | **running** (G2) |
+| Fixed rounds versus early stopping | new | **running** |
+| Month-ahead model, per-format models, two-stage sessions | v3 | **left** (after G2 result) |
+| Adversarial validation, purged diagnostic fold | v3 | **left** (cheap) |
+| Peer-hub residuals, regime experts, reconciliation, shift adaptation | v3 | waiting list |
+| Coresets from GBDT leaves | v3 | end-term extra |
