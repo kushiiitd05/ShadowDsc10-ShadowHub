@@ -358,3 +358,22 @@ Equal-weight log-mean blends:
 
 - The pairing gain has the same sign on all three seeds and comes mostly from fold 1 (about −0.005); it stays below the 0.0024 gate against a size-matched control, so per-tier is an **optional member**, adopted only if the final retrain budget allows.
 - Fixed rounds at lr 0.025: 600 rounds 0.1176, 1000 rounds 0.1174 (early-stopped at lr 0.025: 0.1170; fixed 300 at lr 0.05: 0.1190). **Final-retrain setting: lr 0.025, 1000 fixed rounds.**
+
+## 20. G3b results and the gap-hub finding (25 Nov 15:00)
+
+Seed 20260807, RMSLE, `cs02` reference 0.1190 (folds 0.1377 / 0.1215 / 0.1129 / 0.1039).
+
+| Variant | Mean, all hubs | Mean, 935 non-gap hubs | Fold 3 / fold 4 (all hubs) |
+|---|---|---|---|
+| `cs02` | 0.1190 | 0.1196 | 0.1129 / 0.1039 |
+| `g3b_gap` | 0.1220 | 0.1232 | 0.1235 / 0.1066 |
+| `g3b_yearago` | 0.1199 | 0.1217 | 0.1167 / 0.1061 |
+| `g3b_peer` | 0.1191 | 0.1202 | 0.1177 / 0.1050 |
+| `g3b_all` | 0.1193 | 0.1208 | 0.1123 / 0.1051 |
+| `feat_all` (G3) | 0.1321 | 0.1182 | 0.1155 / 0.1034 on non-gap hubs |
+| `g3b_all_plus_g3` | 0.1251 | **0.1175** | **0.1100 / 0.0994** |
+
+- **The G3 features break the 180 gap hubs on fold 1** (RMSLE 0.29–0.37 on those hubs vs 0.14 for `cs02`): their last 8–13 weeks before 2015-01-02 are empty. On the 935 non-gap hubs the same features help slightly (`feat_all` −0.0014, `g3b_all_plus_g3` −0.0021, fold 4 −0.0046).
+- **Why this matters for the real test:** the real forecast window starts 2015-06-20, almost six months after the gap ended, so the 8-week and 91-day windows of every hub are clean. Folds 3 and 4 (origins 2015-03-27 and 2015-05-08) look like the test; folds 1 and 2 are contaminated by the gap.
+- **Caution, a post-hoc choice:** deciding that folds 3–4 matter most was made after seeing the table. It is only accepted if (a) the same sign holds on seeds 08 and 09 (running), (b) it passes on the season-matched fold 2014-06-19, and (c) fold 1 is reported honestly with gap hubs handled (fallback to the pre-gap value or a prior) rather than hidden.
+- No G3b variant alone passes. The candidate is `g3b_all_plus_g3` (all new groups together).
