@@ -597,3 +597,11 @@ Seed-agreement and open-zero checks were done for C, D, E; A, B, F stopped at fo
 | p2: drop the 6 `lags_avail` flags | +0.0041 | −0.0004 | −0.0000 | −0.0003 | fail (fold-1 gain not seed-stable) |
 
 **Not adopted; the column set stays as is.**
+
+## 34. Hyper-parameter search (G6) and TabPFN-TS fold 5, 26 Nov 01:30
+
+Full 20-config table with per-fold scores: `RESULTS_AND_VERDICTS_2026-11-26.md` section 2 and `research/hp_search_20configs_2026-11-26.csv`. The control `hp_000` (= `cs02`) reproduces 0.1378 / 0.1215 / 0.1129 / 0.1039.
+
+- **`hp_017` (colsample 0.15, 255 leaves, min_child 160, lambda 24.1) is the only config better on all four folds:** 0.1288 / 0.1202 / 0.1078 / 0.1027, mean 0.1149 against 0.1190 (gain 0.0041; folds 2–4 gain 0.0025 against the 0.0024 gate). Best of 19 alternatives on the same folds, so the gain is optimistic. **Candidate; confirmation running:** seeds 08 and 09 on folds 1–4, seeds 07/08/09 on fold 5, and nine neighbour variants registered as `hp17*` in `exp_runner.py` (lambda 10/50, 511 and 127 leaves, min child 320, colsample 0.1/0.2, fixed 1000 rounds).
+- Pattern: 255 leaves with strong L2 and large min child wins; all 31-leaf configs lose on every fold.
+- **TabPFN-TS on fold 5** (935 hubs with a full block; the runner now drops partial-block hubs): alone 0.1778 against 0.1784 for the 3-seed `cs02`; blend gain +0.0020 / +0.0036 / +0.0048 at weights 0.1 / 0.2 / 0.3. Together with folds 2 and 4 (+0.0025, +0.0029 at w 0.3) it is positive on three of four non-winter folds, negative on fold 1 (−0.0120), and misses the gate on folds 2–4 (+0.0018). Stays a **challenger**; tested again on top of the winning `cs02` variant before the freeze.
