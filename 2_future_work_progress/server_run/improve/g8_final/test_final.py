@@ -184,3 +184,158 @@ def test_cli_dry_run_mode_and_exit_code(tmp_path: Path) -> None:
     table.to_csv(path, index=False)
     assert sc.main([str(path), "--dry-run", "--expected-rows", "200"]) == 0
     assert sc.main([str(path), "--dry-run"]) == 1  # default expects the real 46,830 rows
+
+
+# ---------------------------------------------------------------- recipe selection (cs02 default, hp17 on request)
+def test_recipe_default_is_cs02_and_hp17_matches_the_registered_variant() -> None:
+    assert fr.final_config() == fr.final_config("cs02")
+    cfg = fr.final_config("hp17")
+    assert (cfg.colsample, cfg.subsample_freq, cfg.num_leaves, cfg.min_child, cfg.reg_lambda, cfg.fixed_rounds) == (0.15, 1, 255, 160, 24.1, 1000)
+    params = fr.lgb_params(cfg, 0.025, 7, 16)
+    assert params["learning_rate"] == 0.025 and params["n_estimators"] == 1000 and params["num_leaves"] == 255
+    assert params["min_child_samples"] == 160 and params["reg_lambda"] == 24.1 and params["colsample_bytree"] == 0.15
+    with pytest.raises(ValueError):
+        fr.final_config("hp18")
+
+
+def test_recipe_drift_from_the_registered_variant_is_refused(monkeypatch) -> None:
+    from dataclasses import replace
+    drifted = replace(fr.VARIANTS["hp17_fix1000"], num_leaves=511)
+    monkeypatch.setitem(fr.VARIANTS, "hp17_fix1000", drifted)
+    with pytest.raises(AssertionError, match="drifted"):
+        fr.final_config("hp17")
+    fr.final_config("cs02")  # the other recipe is unaffected
+
+
+def test_cli_defaults_keep_the_cs02_behaviour() -> None:
+    args = fr.parse_args(["proj", "out"])
+    assert args.recipe == "cs02" and args.pertier_recipe == "cs02" and args.blend_file is None and args.blend_weight is None
+    hp = fr.parse_args(["proj", "out", "--recipe", "hp17", "--pertier-recipe", "hp17", "--blend-file", "x.csv"])
+    assert hp.recipe == "hp17" and hp.pertier_recipe == "hp17"
+    with pytest.raises(SystemExit):
+        fr.parse_args(["proj", "out", "--recipe", "other"])
+
+
+def test_blend_arguments_must_come_as_a_pair() -> None:
+    assert fr.resolve_blend(fr.parse_args(["p", "o"])) == (None, 0.0)
+    ok = fr.resolve_blend(fr.parse_args(["p", "o", "--blend-file", "f.csv"]))
+    assert ok == (Path("f.csv"), fr.BLEND_WEIGHT_DEFAULT) and fr.BLEND_WEIGHT_DEFAULT == 0.2
+    assert fr.resolve_blend(fr.parse_args(["p", "o", "--blend-file", "f.csv", "--blend-weight", "0.3"]))[1] == 0.3
+    with pytest.raises(SystemExit):
+        fr.resolve_blend(fr.parse_args(["p", "o", "--blend-weight", "0.2"]))  # weight without a file
+    for bad in ("0", "1.5", "-0.1"):
+        with pytest.raises(SystemExit):
+            fr.resolve_blend(fr.parse_args(["p", "o", "--blend-file", "f.csv", "--blend-weight", bad]))
+
+
+# ---------------------------------------------------------------- external blend in log1p space
+def test_external_blend_is_log1p_space_arithmetic() -> None:
+    base, ext = np.array([100.0, 0.0, 50.0, 7.0]), np.array([400.0, 10.0, 0.0, 7.0])
+    out = fr.blend_external(base, ext, 0.2, np.array([1, 1, 1, 1]))
+    assert out == pytest.approx(np.expm1(0.8 * np.log1p(base) + 0.2 * np.log1p(ext)))
+    assert out[0] == pytest.approx(np.expm1(0.8 * np.log(101) + 0.2 * np.log(401)))
+    assert out[0] < 0.8 * 100 + 0.2 * 400  # not the arithmetic blend
+    assert out[3] == pytest.approx(7.0)  # equal inputs are a fixed point
+    assert fr.blend_external(base, ext, 0.0, np.ones(4)) == pytest.approx(base)
+    assert fr.blend_external(base, ext, 1.0, np.ones(4)) == pytest.approx(ext)
+
+
+def test_external_blend_on_top_of_the_seed_mean_matches_the_formula() -> None:
+    seeds = [np.array([100.0, 30.0]), np.array([200.0, 40.0]), np.array([300.0, 50.0])]
+    pertier = [np.array([150.0, 35.0])]
+    ext = np.array([500.0, 20.0])
+    is_open = np.array([1, 1])
+    base = fr.combine_members(seeds, [], is_open, "member")
+    mean_log = np.mean([np.log1p(m) for m in seeds], axis=0)
+    assert fr.blend_external(base, ext, 0.2, is_open) == pytest.approx(np.expm1(0.8 * mean_log + 0.2 * np.log1p(ext)))
+    base = fr.combine_members(seeds, pertier, is_open, "member")
+    mean_log = np.mean([np.log1p(m) for m in [*seeds, *pertier]], axis=0)
+    assert fr.blend_external(base, ext, 0.2, is_open) == pytest.approx(np.expm1(0.8 * mean_log + 0.2 * np.log1p(ext)))
+
+
+def test_external_blend_zeroes_closed_rows_and_never_mutates_inputs() -> None:
+    base, ext = np.array([100.0, 100.0, 5.0]), np.array([300.0, 300.0, 5.0])
+    is_open = np.array([1, 0, 1])
+    keep = base.copy(), ext.copy(), is_open.copy()
+    out = fr.blend_external(base, ext, 0.2, is_open)
+    assert out[1] == 0.0 and out[0] > 0 and (out >= 0).all()
+    assert all(np.array_equal(a, b) for a, b in zip(keep, (base, ext, is_open)))
+
+
+def test_external_blend_refuses_bad_weights_and_non_finite_or_negative_external() -> None:
+    base, o = np.array([1.0, 2.0]), np.array([1, 1])
+    for w in (-0.1, 1.1, float("nan")):
+        with pytest.raises(ValueError):
+            fr.blend_external(base, np.array([1.0, 2.0]), w, o)
+    for bad in (np.nan, np.inf, -3.0):
+        with pytest.raises(ValueError):
+            fr.blend_external(base, np.array([1.0, bad]), 0.2, o)
+    with pytest.raises(ValueError):
+        fr.blend_external(base, np.array([1.0]), 0.2, o)  # length mismatch
+
+
+# ---------------------------------------------------------------- the external file must match the test frame
+def _test_frame() -> pd.DataFrame:
+    return pd.DataFrame({"Id": [11, 12, 13, 14], "HubID": [1, 1, 2, 2], "IsOpen": [1, 0, 1, 1],
+                         "Date": pd.to_datetime(["2015-06-20", "2015-06-21"] * 2)})
+
+
+def test_load_external_accepts_exact_ids_and_returns_frame_order(tmp_path: Path) -> None:
+    path = tmp_path / "ext.csv"
+    pd.DataFrame({"Id": [11, 12, 13, 14], "OrderVolume": [5.0, 0.0, 7.0, 9.0]}).to_csv(path, index=False)
+    out = fr.load_external_test(path, _test_frame()["Id"])
+    assert out.tolist() == [5.0, 0.0, 7.0, 9.0]
+
+
+@pytest.mark.parametrize("ids", [[11, 12, 13, 99], [11, 12, 14, 13], [11, 12, 13], [11, 12, 13, 14, 15], [11, 11, 13, 14]])
+def test_load_external_refuses_any_id_mismatch(tmp_path: Path, ids) -> None:
+    path = tmp_path / "ext.csv"
+    pd.DataFrame({"Id": ids, "OrderVolume": np.arange(1.0, len(ids) + 1)}).to_csv(path, index=False)
+    with pytest.raises(ValueError, match="Id"):
+        fr.load_external_test(path, _test_frame()["Id"])
+
+
+def test_load_external_refuses_missing_columns_and_bad_values(tmp_path: Path) -> None:
+    path = tmp_path / "ext.csv"
+    pd.DataFrame({"Id": [11, 12, 13, 14], "pred": [1.0, 2.0, 3.0, 4.0]}).to_csv(path, index=False)
+    with pytest.raises(ValueError, match="columns"):
+        fr.load_external_test(path, _test_frame()["Id"])
+    pd.DataFrame({"Id": [11, 12, 13, 14], "OrderVolume": [1.0, np.nan, 3.0, 4.0]}).to_csv(path, index=False)
+    with pytest.raises(ValueError, match="non-finite"):
+        fr.load_external_test(path, _test_frame()["Id"])
+
+
+def test_load_external_oof_aligns_by_key_for_the_dry_run(tmp_path: Path) -> None:
+    frame = _test_frame()
+    oof = pd.DataFrame({"fold": 4, "HubID": [2, 1, 2, 1], "Date": ["2015-06-21", "2015-06-20", "2015-06-20", "2015-06-21"],
+                        "pred": [90.0, 50.0, 70.0, 0.0]})
+    other_fold = oof.assign(fold=3, pred=1e6)
+    path = tmp_path / "oof.csv.gz"
+    pd.concat([oof, other_fold]).to_csv(path, index=False)
+    out = fr.load_external_oof(path, frame, 4)
+    assert out.tolist() == [50.0, 0.0, 70.0, 90.0]  # frame order (hub, date), not file order, other fold ignored
+    with pytest.raises(ValueError, match="no prediction"):
+        fr.load_external_oof(path, frame, 2)
+    path2 = tmp_path / "oof2.csv.gz"
+    oof.iloc[:3].to_csv(path2, index=False)
+    with pytest.raises(ValueError, match="no prediction"):
+        fr.load_external_oof(path2, frame, 4)
+    path3 = tmp_path / "oof3.csv.gz"
+    pd.concat([oof, oof.iloc[:1]]).to_csv(path3, index=False)
+    with pytest.raises(ValueError, match="duplicate"):
+        fr.load_external_oof(path3, frame, 4)
+
+
+# ---------------------------------------------------------------- manifest fields
+def test_run_manifest_records_recipe_blend_weight_and_hashes(tmp_path: Path) -> None:
+    blend = tmp_path / "ext.csv"
+    blend.write_text("Id,OrderVolume\n1,2\n")
+    cfg = fr.final_config("hp17")
+    info = fr.recipe_block("hp17", "cs02", cfg, 0.025)
+    assert info["recipe"] == "hp17" and info["variant"] == "hp17_fix1000" and info["pertier_recipe"] == "cs02"
+    assert info["learning_rate"] == 0.025 and info["fixed_rounds"] == 1000 and info["num_leaves"] == 255
+    block = fr.blend_block(mode="member", with_pertier=True, pertier_seeds=[1], fallback_rows=0, blend_file=blend, weight=0.2)
+    assert block["external"] == {"file": "ext.csv", "sha256": hashlib.sha256(blend.read_bytes()).hexdigest(), "weight": 0.2, "space": "log1p"}
+    none = fr.blend_block(mode="member", with_pertier=False, pertier_seeds=[], fallback_rows=0, blend_file=None, weight=0.0)
+    assert none["external"] is None
+    json.dumps([info, block, none])
