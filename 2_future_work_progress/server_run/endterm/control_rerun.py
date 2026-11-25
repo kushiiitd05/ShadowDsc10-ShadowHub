@@ -1,6 +1,6 @@
-"""Control rerun of the frozen 0.06976 pipeline, with model saving and timing.
+"""Control rerun of the earlier best pipeline, with model saving and timing.
 
-Same logic as 2_future_work_progress/kaggle_modelling/scripts/kaggle_end_to_end_source.py
+Same logic as the end-to-end source script in 2_future_work_progress/kaggle_modelling/scripts/
 (including its known flaws F2/F5/F6, kept on purpose so this is a faithful control).
 Differences: paths come from argv, processed data may be reused instead of rebuilt,
 every fitted model is saved with a SHA-256, and wall-clock timings are recorded.
