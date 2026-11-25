@@ -508,3 +508,15 @@ The earlier plan said to cut low-priority items. **Changed on instruction: every
 Closed with verdicts (no rerun): level/offset/recency, Tweedie, CatBoost and MLP blends, NNLS, calibration, horizon split, per-format and per-tier, G3, G3b, G3c, fold 5 (sections 12–26).
 
 Rules: one change at a time against `cs02`; results land as one row per run in `experiments.csv`; every verdict is written here as the next numbered section; the servers always have a queued job.
+
+## 28. Chronos-2 zero-shot pilot (item 3.1), 25 Nov 19:30: not adopted
+
+History = all raw rows up to the forecast origin; 0.5 quantile, expm1, clipped at 0, closed future days set to 0; 13 tests pass. Covariates: IsOpen, PromoActive, RegionalHoliday, SchoolClosureFlag.
+
+| RMSLE, all rows | fold 1 | fold 2 | fold 3 | fold 4 | mean |
+|---|---|---|---|---|---|
+| Chronos-2 univariate | 0.278 | 0.234 | 0.339 | 0.263 | 0.2785 |
+| Chronos-2 with covariates | 0.206 | 0.157 | 0.178 | 0.156 | 0.1743 |
+| `cs02` | 0.1377 | 0.1215 | 0.1129 | 0.1039 | 0.1190 |
+
+Blend gain over `cs02` (covariates variant; positive = better): weight 0.1 gives −0.0006 / +0.0016 / +0.0018 / +0.0007 (mean +0.0009); weight 0.2 gives −0.0029 / +0.0019 / +0.0013 / −0.0001 (mean 0.0000); weight 0.3 gives mean −0.0025. The univariate version loses at every weight. Best fold gain 0.0019, below the 0.0024 gate; fold 1 is worse. **Not adopted.** Code in `improve/g7_chronos/`, results in `endterm/results/CHR/` locally.
