@@ -413,3 +413,19 @@ Ridge: the sampling method barely matters (0.159–0.166 at every size); the cor
 Columns (rows fixed at 200,000, LightGBM): importance-based column choice (gain from a rough model fitted on a uniform training sample) vs uniform random columns: k = 40: 0.1102 vs 0.1770; k = 80: 0.1087 vs 0.1248; k = 160: 0.1058 vs 0.1129; full 342 columns: 0.1045.
 Slopes (log–log, Plot 3 vs Plot 5): ridge parameter difference falls at 0.66× the training-gap slope (theory about 0.5); LightGBM prediction difference 0.33×.
 Open items for this track: exclusive timing run (1–2 Dec), a model-agnostic check that the coreset's advantage at mid sizes is not an artefact of the weight normalisation (rerun with unnormalised weights on one size), slide text, reviewer-agent pass.
+
+## 23. Replication of the G3/G3b feature lead (25 Nov 15:35): it does not hold
+
+Delta vs `cs02` of the same seed (negative = better), RMSLE:
+
+| Variant, seed | Fold 1 | Fold 2 | Fold 3 | Fold 4 |
+|---|---|---|---|---|
+| `g3b_all_plus_g3`, 07 | +0.0294 | +0.0021 | −0.0029 | −0.0045 |
+| `g3b_all_plus_g3`, 08 | +0.0420 | +0.0142 | +0.0098 | −0.0019 |
+| `g3b_all_plus_g3`, 09 | +0.0552 | +0.0031 | +0.0053 | −0.0051 |
+| `feat_all`, 07 | +0.0531 | −0.0001 | +0.0013 | −0.0020 |
+| `feat_all`, 08 | +0.0604 | +0.0067 | −0.0007 | −0.0010 |
+| `feat_all`, 09 | +0.0508 | +0.0180 | −0.0032 | −0.0036 |
+
+- Fold 4 improves on every seed (about −0.002 to −0.005) but fold 3 flips sign between seeds and fold 2 gets worse on every seed. Averaged over folds 3–4 the best case is −0.0016 (`feat_all`), below the 0.0024 gate, and folds 1–2 are clearly worse.
+- **Decision: no feature set from G3 or G3b is adopted.** `cs02` stays the recipe. The earlier "folds 3–4 represent the test" reasoning is kept as an argument but is not enough alone; fold 5 (summer fold) and the event-day features (G3c, being written) are the remaining feature tests.
