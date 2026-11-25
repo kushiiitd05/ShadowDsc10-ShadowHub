@@ -552,3 +552,14 @@ Gain over `cs02` (positive = better; mean of seeds 07/08/09):
 - (b) passes folds 1 and 3 but fails folds 2–4 as a set and fold 5. **Averaging `cs02` with a second `cs02` seed already gains about +0.001, so a good part of (b) is variance reduction, not season information.** The season member alone is poor (4–6 training origins, mean gain −0.0002). Not adopted; to be re-tested only against a two-seed `cs02` control if time remains.
 - (c) doubles rows (0.93 M → 1.80 M), memory (10.5 → 18.8 GB) and fit time (62 → 110 s) for no gain. Not adopted.
 - Season rule ±45 days leaves almost nothing for fold 5 (only July 2013 exists in that season).
+
+## 31. Final-retrain pipeline (G5) built and dry-run, 25 Nov 21:15
+
+`improve/g8_final/`: `final_retrain.py`, `sanity_checks.py`, `test_final.py` (16 tests pass locally and on the server). The real retrain has **not** been run; it is the 3 Dec step.
+
+- Setting: LightGBM `cs02`, lr 0.025, 1000 fixed rounds, three seeds (20260807/08/09) averaged in log space, plus optional per-tier set (`--blend-mode member|half`, `--pertier-seeds`, default first seed only). `--preflight` checks inputs and exits. It refuses to overwrite an existing manifest.
+- Outputs mirror the control run: `lightgbm_s<seed>.txt`, `pertier_*.txt`, `test_pred_*.npy`, `submission_final.csv`, `final_manifest.json` with a SHA-256 for every model and for the submission.
+- Dry run on fold 4 (33 origins, seed 20260807, 16 threads): global model RMSLE **0.10172**; global + per-tier **0.10132** (the fold-4 score for the final setting). All sanity checks pass (closed rows 0, no NaN or negatives, 46,830 rows).
+- Real-run sanity path run with the control submission as both prediction and reference: all checks pass, Id order matches the test frame.
+- Preflight on the real test frame: 37 origins whose labels end 2015-06-19 (one day before the test window), 341 feature columns present.
+- Estimated wall time for the real retrain on Manjot with 40 cores: 30–40 min (3 seeds + one per-tier set), 50–60 min with three per-tier seeds, about 15 min of it single-threaded loading.
