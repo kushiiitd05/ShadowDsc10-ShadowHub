@@ -1,6 +1,6 @@
 # STATUS update 2026-11-24 (end-term and model improvement)
 
-- Read `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-24.md` first: it records what is running, what verification corrected, the revised end-term design and the decisions still needed.
+- Read `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-25.md` first: it records what is running, what verification corrected, the revised end-term design and the decisions still needed.
 - Model weights of the earlier best model were never saved and are not found anywhere; a control rerun with model saving is running on a GPU server (CPU GBDT). Record model path and SHA-256 here when it finishes.
 - Verified 24 Nov: the last 42 training days equal CV fold 4; open-but-zero rows do NOT explain the CV-vs-score gap (it stays unexplained); horizon-bucket offsets lose to one global offset.
 - Improvement Phases 0-5: not started. End-term experiments: not started.
