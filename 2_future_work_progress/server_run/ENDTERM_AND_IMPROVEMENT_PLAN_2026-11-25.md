@@ -396,3 +396,20 @@ Why week 1 is worst: the error is **concentrated on a few event days**, not on a
 Consequence: the next feature round (G3c, being written) targets event days: hub-specific history on previous holidays of the same type (so Easter 2015 sees Easter 2014), holiday and school-closure counts and distances, an open-Sunday profile and a hub promo ratio. These are plan items 1b.5, 1b.6 and 1b.7, now justified by data rather than by the Rossmann write-ups.
 
 Fold 5 (season-matched, origin 2014-06-19, validation 2014-06-20..07-31, 41,250 rows because 180 hubs have no rows after 2014-06-30): built on server B with the pipeline's complete-grid assertion switched off by an environment flag in the server copy only. Runs for `base`, `cs02`, `cs02_tweedie`, per-tier and the G3 candidate (3 seeds each) are in progress; they serve as the independent check on the summer season.
+
+## 22. End-term run 1 complete (25 Nov 15:25) — results in `endterm/results_run1/`
+
+Setup: fixed time split (train = origins up to 2015-05-08 minus the holdout, 1,133,640 open positive-volume rows; test = fold 4, 46,830 rows); model x* = LightGBM `cs02` recipe with 1184 rounds fixed from the training-only holdout, second model ridge (λ = 0.1 chosen on the same holdout); loss = squared error on log1p; sizes 2k–200k rows; 5 repetitions; medians with min–max. Timings are from a shared server (load 10–30): they are for development only; the speed-up table must come from the exclusive run on 1–2 Dec.
+
+| Quantity | LightGBM | Ridge |
+|---|---|---|
+| Full model test RMSLE / R² (log scale) | 0.1022 / 0.9992 | 0.1592 / 0.9980 |
+| Full training time (shared server) | 60 s | 4.3 s |
+| Total sensitivity S (range 2–6 expected) | 2.47 | 2.12 |
+| Largest roughness α_t = F(x̃)/opt | 2.45 | 1.01 |
+
+LightGBM rows, test RMSLE (median) uniform → coreset: 5k 0.1218 → **0.1195**; 10k 0.1187 → **0.1170**; 25k 0.1133 → **0.1108**; 50k 0.1102 → **0.1070**; 100k 0.1099 → **0.1058**; ties at 2k (0.1297 / 0.1318) and 200k (0.1055 / 0.1045). Hub-stratified is no better than uniform. Coreset build time about 10 s (five rough models + scoring all rows); at 50k rows the coreset reaches 0.1070 vs full 0.1022 (+0.0048) in about 21 s against 60 s for the full fit, a 2.9× speed-up; uniform at 50k is 5.2× faster but 0.0080 above full.
+Ridge: the sampling method barely matters (0.159–0.166 at every size); the coreset helps the training-set gap at small sizes (m = 2000: 0.030 vs 0.084) but its 18.6 s build cost exceeds the 4.3 s full fit, so for ridge sampling gives no time saving. Honest negative result for the conclusion slide.
+Columns (rows fixed at 200,000, LightGBM): importance-based column choice (gain from a rough model fitted on a uniform training sample) vs uniform random columns: k = 40: 0.1102 vs 0.1770; k = 80: 0.1087 vs 0.1248; k = 160: 0.1058 vs 0.1129; full 342 columns: 0.1045.
+Slopes (log–log, Plot 3 vs Plot 5): ridge parameter difference falls at 0.66× the training-gap slope (theory about 0.5); LightGBM prediction difference 0.33×.
+Open items for this track: exclusive timing run (1–2 Dec), a model-agnostic check that the coreset's advantage at mid sizes is not an artefact of the weight normalisation (rerun with unnormalised weights on one size), slide text, reviewer-agent pass.
