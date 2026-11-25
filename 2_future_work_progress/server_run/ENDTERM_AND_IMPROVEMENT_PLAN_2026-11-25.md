@@ -346,3 +346,15 @@ Equal-weight log-mean blends:
 - The per-tier model alone is −0.0012 vs `cs02`, mostly from fold 1 (−0.0061), the fold right after the data gap; per-format is worse.
 - Mixing a per-tier model with the global one beats the size-matched seed average by about 0.0008 (0.1168 vs 0.1176; 0.1165 vs 0.1173). That is below the 0.0024 gate and above the seed spread (0.0005): **keep as an optional member**, decide after the seed-08/09 per-tier runs (running).
 - Per-format adds nothing on top of per-tier.
+
+## 19. Per-tier on three seeds; lr 0.025 fixed rounds (25 Nov 14:30)
+
+| Seed | `cs02` | per-tier | `cs02` + per-tier (equal log mean) |
+|---|---|---|---|
+| 20260807 | 0.1190 | 0.1178 | 0.1168 (−0.0022) |
+| 20260808 | 0.1186 | 0.1174 | 0.1167 (−0.0019) |
+| 20260809 | 0.1191 | 0.1198 | 0.1179 (−0.0012) |
+| 3-seed average of each, then blended | 0.1173 | 0.1170 | **0.1164** (−0.0009 vs the size-matched 3-seed average) |
+
+- The pairing gain has the same sign on all three seeds and comes mostly from fold 1 (about −0.005); it stays below the 0.0024 gate against a size-matched control, so per-tier is an **optional member**, adopted only if the final retrain budget allows.
+- Fixed rounds at lr 0.025: 600 rounds 0.1176, 1000 rounds 0.1174 (early-stopped at lr 0.025: 0.1170; fixed 300 at lr 0.05: 0.1190). **Final-retrain setting: lr 0.025, 1000 fixed rounds.**
