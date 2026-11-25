@@ -82,3 +82,19 @@ Not worth more time: more model families, more feature sets, more blend members 
 
 ## E. Change at 26 Nov 05:30: Optuna now tunes the LightGBM settings and the blend weight together
 Reason: the best candidate is `hp17` + TabPFN-TS, so the search objective is the blended score. Study `g6c_blend`: same LightGBM space as before (colsample 0.10–0.35, leaves {63,127,255,383,511}, min child 60–400, lambda 1–100) plus the weight w in 0.00–0.40 (step 0.05); objective = RMSLE of the log-space blend, mean over folds 2 and 3 only; 40 trials, TPE seed 20260807; controls enqueued: (`cs02`, w 0), (`cs02`, w 0.2), (`hp17`, w 0), (`hp17`, w 0.2). Stops at 40 trials or 28 Nov 18:00. Top 5 are then run on folds 1, 4, 5 and compared with `hp17` + 0.2; seeds 08/09 and the gate (§39) follow on 29–30 Nov. Selection bias (best of 40, weight tuned on two folds) is disclosed in the verdict. A winner replaces `hp17` + 0.2 only if it passes the gate against the like-for-like `cs02` baseline AND beats `hp17` + 0.2 by more than 0.0012 on folds 2–4; otherwise the freeze candidate stays `hp17` + 0.2.
+
+## F. Compressed schedule: model decided and frozen by end of tomorrow (27 Nov)
+
+New finding that changes the blend input: TabPFN-TS with a 730-day context scores fold 4 at **0.1041** alone (365 days: 0.1125; `cs02` 0.1035). A better TabPFN-TS member is the largest lever left, so the blend weight range is widened to 0.00–0.60 and Optuna uses the 730-day OOF.
+
+| When | Manjot (CPU) | Vinayak (GPU + CPU) |
+|---|---|---|
+| tonight | Optuna study A (`g6c_blend`, TPE seed 20260807); rehearsal retrain on the real path (`hp17` + 365-day TabPFN-TS test file at 0.2, 3 seeds; checks the whole path end to end and is the first confirmed fallback artifact) | TabPFN-TS 730-day context: folds 4,3,2 (about 40 min), then folds 1 and 5; then the 730-day test-window file (about 13 min); Optuna study B (same script, TPE seed 20260808, own storage) on CPU |
+| tomorrow 06:00–09:00 | read the 730-day OOF: stack gate with 730 (§39); if better than 365 by more than 0.0012 on folds 2–4, the 730 file replaces it everywhere | same |
+| tomorrow 10:00 | both studies stop (40 trials or 10:00, whichever first); merge trial tables; top 5 overall (excluding controls) | finalists: folds 1, 4, 5 at seed 07 (Manjot and Vinayak split the five); top 2 also seeds 08/09 on folds 2–5 |
+| tomorrow 15:00 | gate table (§40): finalist + TabPFN-TS vs like-for-like `cs02` baseline AND vs `hp17` + 0.2 (must beat it by > 0.0012 on folds 2–4) | evidence audit written |
+| tomorrow 17:00 | **recipe decision written (CV only), `STATUS.md`** | |
+| tomorrow evening | **real retrain on the decided recipe (30–40 min), hashes, sanity checks, fallback kept** | |
+| 28 Nov – 7 Dec | no model changes (3 Dec stays as the last-resort date only); report, audit, presentation brief, slides 6–9; **exclusive timing run 1–2 Dec on an idle server**; banned-term scan; rehearsal; submit 8 Dec | |
+
+Decision rule if nothing finishes in time: the freeze candidate is `hp17` (3 seeds, lr 0.025, 1000 fixed rounds) + TabPFN-TS 0.2, already passed the gate (§38); fallback `cs02` (same setting). Optuna and the 730-day input are accepted only on evidence, never on schedule pressure.
