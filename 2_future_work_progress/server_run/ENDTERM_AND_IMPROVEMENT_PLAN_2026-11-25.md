@@ -377,3 +377,22 @@ Seed 20260807, RMSLE, `cs02` reference 0.1190 (folds 0.1377 / 0.1215 / 0.1129 / 
 - **Why this matters for the real test:** the real forecast window starts 2015-06-20, almost six months after the gap ended, so the 8-week and 91-day windows of every hub are clean. Folds 3 and 4 (origins 2015-03-27 and 2015-05-08) look like the test; folds 1 and 2 are contaminated by the gap.
 - **Caution, a post-hoc choice:** deciding that folds 3–4 matter most was made after seeing the table. It is only accepted if (a) the same sign holds on seeds 08 and 09 (running), (b) it passes on the season-matched fold 2014-06-19, and (c) fold 1 is reported honestly with gap hubs handled (fallback to the pre-gap value or a prior) rather than hidden.
 - No G3b variant alone passes. The candidate is `g3b_all_plus_g3` (all new groups together).
+
+## 21. Error analysis of the champion (Phase 4, 25 Nov 15:15) and fold 5
+
+Saved `cs02` predictions on folds 1–4 (seed 20260807), open rows.
+
+| Segment | Finding |
+|---|---|
+| HubFormat 1 / 2 / 3 / 4 | RMSLE 0.121 / 0.129 / 0.133 / 0.111; format 1 carries 55% of squared error because it has most rows |
+| AssortmentTier 1 / 2 / 3 | 0.125 / 0.110 / 0.113 |
+| Gap hubs vs others | 0.117 vs 0.120: the champion is not worse on the 180 gap hubs |
+| Weekday | Thursday 0.142 and Monday 0.138 worst; Sunday has 0.0318 only because most Sunday rows are closed |
+| Horizon week 1 / 2 / 3 / 4 / 5 / 6 | 0.154 / 0.111 / 0.110 / 0.102 / 0.116 / 0.119: **week 1 is the worst, not the best** |
+| Concentration | the 20 worst hubs carry 16% of squared error; the worst 5% of hubs 23% |
+
+Why week 1 is worst: the error is **concentrated on a few event days**, not on a horizon. The 10 worst days (6% of the 168) carry 28% of the squared error. Days where a regional holiday covers more than 5% of hubs average RMSLE 0.267 vs 0.133 for other days. Worst days: 2015-05-01 (holiday + promo, 0.416), 2015-03-15 and several other Sundays (mean volume only about 200 vs about 5,000 on weekdays, so a few hubs are open), 2015-02-16 (promo + school closure), Easter 2015-04-03..06 (movable; lag-364 never aligns), 2015-05-14 and 2015-05-25 (holidays), 2015-05-15 (school closure 38%).
+
+Consequence: the next feature round (G3c, being written) targets event days: hub-specific history on previous holidays of the same type (so Easter 2015 sees Easter 2014), holiday and school-closure counts and distances, an open-Sunday profile and a hub promo ratio. These are plan items 1b.5, 1b.6 and 1b.7, now justified by data rather than by the Rossmann write-ups.
+
+Fold 5 (season-matched, origin 2014-06-19, validation 2014-06-20..07-31, 41,250 rows because 180 hubs have no rows after 2014-06-30): built on server B with the pipeline's complete-grid assertion switched off by an environment flag in the server copy only. Runs for `base`, `cs02`, `cs02_tweedie`, per-tier and the G3 candidate (3 seeds each) are in progress; they serve as the independent check on the summer season.
