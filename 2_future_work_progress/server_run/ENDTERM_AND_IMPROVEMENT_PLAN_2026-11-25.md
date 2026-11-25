@@ -429,3 +429,7 @@ Delta vs `cs02` of the same seed (negative = better), RMSLE:
 
 - Fold 4 improves on every seed (about −0.002 to −0.005) but fold 3 flips sign between seeds and fold 2 gets worse on every seed. Averaged over folds 3–4 the best case is −0.0016 (`feat_all`), below the 0.0024 gate, and folds 1–2 are clearly worse.
 - **Decision: no feature set from G3 or G3b is adopted.** `cs02` stays the recipe. The earlier "folds 3–4 represent the test" reasoning is kept as an argument but is not enough alone; fold 5 (summer fold) and the event-day features (G3c, being written) are the remaining feature tests.
+
+## 24. G3c (event-day features) and a limit on what holiday features can do (25 Nov 15:50)
+
+55 tests pass; 36 `g3c_` columns in four groups (holiday history incl. same-type previous holiday, calendar counts and distances for holiday / school closure / promo, open-Sunday profile, hub promo ratio). **Finding that limits the whole idea:** `RegionalHoliday` is a code (1 ordinary holiday, 2 Easter Friday/Monday, 3 Christmas); **the real test window (2015-06-20 to 07-31) has `RegionalHoliday` = 0 everywhere**, and so does fold 5 (summer 2014). Any gain from the holiday group can only be measured on folds 3 and 4 and cannot carry over to the final test. The calendar's school-closure and promo parts and the Sunday profile still apply to summer. Therefore: G3c runs on folds 3, 4, 5, 2; only the groups that help on fold 5 are candidates, and a gain that appears only on folds 3–4 through holiday columns is recorded but not adopted.
