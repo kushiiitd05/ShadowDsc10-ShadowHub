@@ -212,3 +212,20 @@ Same folds (1–4), same seed 20260807, same early-stopping holdout rule; blend 
 - The recipe gain is larger for the single LightGBM (−0.0122) than for the blend (−0.0072): blending already removed part of the variance that feature subsampling removes.
 - On the champion recipe the blend improves on LightGBM alone by only 0.0012 (it ties on folds 2 and 3). Within the noise: keep it only if the end-term time budget allows; the LightGBM member alone is the fallback.
 - Members are not yet tuned on the champion recipe (CatBoost uses `rsm 0.2`, Tweedie uses the same feature fraction); that is stage G4a.
+
+## 14. Experiment modules built (25 Nov, afternoon) and the server run queue
+
+Three modules were written by helper agents, tested locally on synthetic data (all tests pass), and pushed under `improve/`. None has run on real data yet. Each reuses `exp_runner.prepare_fold` and writes `experiments.csv` plus `oof_<variant>_s<seed>.csv.gz` in the harness schema, so `blend.py` and the gate rule apply unchanged.
+
+| Stage | Module | Variants | Notes |
+|---|---|---|---|
+| G2 structure | `g2_horizon/g2_runner.py` | `cs02` (control through the same code path), `split_horizon` (models for horizons 1–21 and 22–42), `long_window_only` (the 22–42 model drops 32 short-window columns, keeps 309 of 341) | 56 tests; `horizon_as_weight` skipped on purpose: training and validation both contain every hub × every horizon, so the weights would be constant. Expected gain small because trees can already split on Horizon |
+| G3 features | `g3_features/g3_runner.py` | `feat_trend`, `feat_weekday_promo`, `feat_streaks`, `feat_all`, `dedupe_only`, `dedupe_plus_all` | 45 tests; 23 new `g3_*` columns; leakage test passes on real raw history (origin 2014-10-02: identical output after scrambling later data). The 24 duplicate columns are the `VolumePerSession_*` set (structural twins of `Conversion_*`); a data-level check finds 29 more (mostly `Sessions_*Count` equal to `Orders_*`), dropped only with `--dedupe-scope all`. Promo flag is global (same for every hub on a date), so promo streak columns act as calendar features. No region column exists: `HubFormat` and `AssortmentTier` stand in |
+| G4b MLP | `g4_mlp/g4_runner.py` | `mlp` (entity embeddings, 512-256-128, OneCycle, bf16) | 11 tests; needs torch on the server; early stopping on the one-origin holdout, so noisy |
+
+Run order once the servers are reachable (each job in its own output folder, `nohup nice`):
+1. Upload `improve/` (tar over ssh); smoke each module on fold 4 with a tiny round count.
+2. Server B: `g2_runner.py --variants cs02,split_horizon,long_window_only --folds 1,2,3,4`, then `g3_runner.py --variants feat_all,dedupe_only,dedupe_plus_all --folds 1,2,3,4`, then the single-group features that survive.
+3. Server A (GPU): `g4_runner.py --folds 1,2,3,4 --epochs 40 --device cuda`, then `blend.py` on `cs02,cs02_tweedie,cs02_cat,mlp`.
+4. A candidate that passes the gate on seed 20260807 is repeated on seeds 08 and 09 before it becomes champion.
+Running now (independent of the VPN): server A `et_full` (end-term sampling, 5 repetitions × 7 sizes, LightGBM and ridge, rows and columns); server B seed-08 and seed-09 champion-recipe blends and a lr-0.025/3000-round run for the final retrain settings.
