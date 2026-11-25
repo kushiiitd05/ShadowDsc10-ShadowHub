@@ -79,3 +79,6 @@ Not worth more time: more model families, more feature sets, more blend members 
 | 3 Dec | **freeze, real retrain (30–40 min), hashes, sanity checks, `STATUS.md`** |
 | 3–7 Dec | report, evidence audit, presentation brief, slides 6–9, banned-term scan, rehearsal |
 | 8 Dec | submit; 9–10 Dec presentations |
+
+## E. Change at 26 Nov 05:30: Optuna now tunes the LightGBM settings and the blend weight together
+Reason: the best candidate is `hp17` + TabPFN-TS, so the search objective is the blended score. Study `g6c_blend`: same LightGBM space as before (colsample 0.10–0.35, leaves {63,127,255,383,511}, min child 60–400, lambda 1–100) plus the weight w in 0.00–0.40 (step 0.05); objective = RMSLE of the log-space blend, mean over folds 2 and 3 only; 40 trials, TPE seed 20260807; controls enqueued: (`cs02`, w 0), (`cs02`, w 0.2), (`hp17`, w 0), (`hp17`, w 0.2). Stops at 40 trials or 28 Nov 18:00. Top 5 are then run on folds 1, 4, 5 and compared with `hp17` + 0.2; seeds 08/09 and the gate (§39) follow on 29–30 Nov. Selection bias (best of 40, weight tuned on two folds) is disclosed in the verdict. A winner replaces `hp17` + 0.2 only if it passes the gate against the like-for-like `cs02` baseline AND beats `hp17` + 0.2 by more than 0.0012 on folds 2–4; otherwise the freeze candidate stays `hp17` + 0.2.
