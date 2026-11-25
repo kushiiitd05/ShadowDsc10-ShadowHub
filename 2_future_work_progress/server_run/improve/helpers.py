@@ -65,5 +65,6 @@ def fold_scores(actual: np.ndarray, prediction: np.ndarray, is_open: np.ndarray)
 
 def recency_weights(origin_dates: np.ndarray, validation_origin: np.datetime64, half_life_days: float) -> np.ndarray:
     """0.5 ** (days between a training origin and the validation origin / half life)."""
-    days = (np.datetime64(validation_origin) - origin_dates.astype("datetime64[D]")).astype(float)
+    # force day units on both sides: mixing ns and D made the difference come out in nanoseconds and every weight 0
+    days = (np.datetime64(validation_origin, "D") - origin_dates.astype("datetime64[D]")).astype(float)
     return 0.5 ** (days / half_life_days)
