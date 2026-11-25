@@ -580,3 +580,20 @@ Gain over `cs02` (positive = better; mean of seeds 07/08/09):
 | F regime experts | hard-gate blend −0.0066 / −0.0015; half-weight −0.0021 / +0.0005; special-rows-only −0.0004 / +0.0003 | open Sunday/holiday rows are only 1.7–3% of squared error, so the ceiling is about 0.0016 | fails |
 
 Seed-agreement and open-zero checks were done for C, D, E; A, B, F stopped at folds 3–4 on seed 07 because they already failed. The ledger's waiting list (peer residuals, regime experts, reconciliation, shift adaptation) is now closed with verdicts.
+
+## 33. Adversarial validation and permutation-importance pruning (G9), 26 Nov 00:10: nothing actionable
+
+43 tests pass (`improve/g9_diagnostics/`).
+
+**Adversarial validation** (folds 1–5 and the real test window, hub-grouped 3-fold CV): AUC is 1.000 for every target, including the control (last training origin vs earlier ones) and even the raw no-calendar set (0.99999 on fold 4); the reduced set that also drops promo, holiday and history-length columns gives 1.000 on real data against 0.997–1.000 for the control. The test cannot show drift, because each origin can be recognised from cross-hub patterns alone, and the test window cannot be told apart from the latest origins either. No feature is flagged. Top non-calendar features by gain share: `Sessions_AtOriginMinus7D` (~0.22), `Orders_AtOriginMinus7D` (~0.17), then the 14- and 28-day versions, then `Orders_AtOrigin`: day-specific cross-hub signals, not distribution drift.
+
+**Permutation importance on `cs02`** (folds 3–4, seed 07, 3 repeats, cost in log RMSE): hub_stats 0.239 (almost all `HistHub*`), rolling 0.030, promo 0.028, calendar 0.021, holiday 0.017, encoding 0.014, lags 0.010. No group is at or below 0 on both folds; only the 6 `lags_avail` flags are about 0.
+
+**Pruning, 3 seeds, gain = `cs02` minus pruned (positive = better):**
+
+| Variant | fold 1 | fold 2 | fold 3 | fold 4 | Gate |
+|---|---|---|---|---|---|
+| p1: drop 81 columns under the 0.0012 noise floor on both folds | −0.0063 | −0.0051 | +0.0028 | +0.0013 | fail (fold 5: −0.0065) |
+| p2: drop the 6 `lags_avail` flags | +0.0041 | −0.0004 | −0.0000 | −0.0003 | fail (fold-1 gain not seed-stable) |
+
+**Not adopted; the column set stays as is.**
