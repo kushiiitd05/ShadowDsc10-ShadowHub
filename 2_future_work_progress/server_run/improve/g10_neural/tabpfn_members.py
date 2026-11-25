@@ -20,6 +20,7 @@ def to_tabpfn_frames(panel: pd.DataFrame, future: pd.DataFrame, context: int) ->
     The context is the last `context` days of each hub's panel (already limited to the origin); the future frame carries
     no target. Pure; inputs are not mutated.
     """
+    panel = panel[panel["unique_id"].isin(future["unique_id"].unique())]  # hubs dropped from the fold (partial block) get no forecast
     ctx = panel.sort_values(["unique_id", "ds"]).groupby("unique_id", sort=False).tail(context)
     context_df = ctx.rename(columns={"unique_id": "item_id", "ds": "timestamp", "y": "target"})[["item_id", "timestamp", "target", *COVARIATES]]
     future_df = future.rename(columns={"unique_id": "item_id", "ds": "timestamp"})[["item_id", "timestamp", *COVARIATES]]
