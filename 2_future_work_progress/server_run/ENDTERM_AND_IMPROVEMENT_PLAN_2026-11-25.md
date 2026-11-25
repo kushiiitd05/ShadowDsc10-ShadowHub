@@ -482,3 +482,29 @@ Vinayak, torch 2.11 cu128, 40 epochs, seed 20260807, folds 1–4. MLP alone: 0.2
 Helps folds 3–4 by at most 0.003, hurts folds 1–2. Fails the gate (needs ≥2 of 3 dev folds). **MLP not adopted.** Model-family diversity (CatBoost, Tweedie, MLP) has now been tried three times with no gain over seed-averaged LightGBM.
 
 Random hyper-parameter search (G6, 20 configs around `cs02`, folds 1–4, seed 20260807) started on Manjot at 17:44.
+
+## 27. Decision (25 Nov 19:10): test every remaining item, then finalise
+
+The earlier plan said to cut low-priority items. **Changed on instruction: every item still on the ledger is run and gets a recorded verdict before the recipe is frozen.** The gate (section 12 / PLAN_V4 §2) is unchanged and applies to each. Nothing is adopted early; the final recipe is chosen after all rows below have a verdict, by 2 Dec, frozen 3 Dec.
+
+| # | Item | Origin | Where | Owner / state |
+|---|---|---|---|---|
+| 1 | Random hyper-parameter search (Optuna item 2.4), 20 configs, folds 1–4, then top 3 on 3 seeds and fold 5 | long plan 2.4 | Manjot | running since 17:44 |
+| 2 | Chronos-2 zero-shot pilot + blend with `cs02` | 3.1 | Vinayak GPU | agent running |
+| 3 | Adversarial validation + permutation-importance pruning | v3, Phase 4 | Manjot | agent running |
+| 4 | Final-retrain script, SHA-256 manifest, sanity checks, fold-4 dry run | G5 | Manjot | agent running |
+| 5 | TiDE, NHITS, TabPFN-TS pilots (global models on log1p, blend check vs `cs02`) | 3.2 / 3.1b | Vinayak GPU | queued, agent |
+| 6 | Summer-2014 incomplete origins (1b.2), season-filtered member, 7-day origins | 1b.2, winner sweep | Manjot / Vinayak CPU | queued, agent |
+| 7 | SVD denoising (rank 12–15 of the hub x day matrix as features) | winner sweep | CPU | queued, agent |
+| 8 | Month-ahead model, two-stage session model | v3 | CPU | queued, agent |
+| 9 | Waiting list: peer-hub residuals, regime experts, hierarchical reconciliation, shift adaptation | v3 | CPU, offline from OOF where possible | queued, agent |
+| 10 | Schema assertion in `model_pipeline.py` (0.2) | long plan | local | queued |
+| 11 | Coresets from GBDT leaves (end-term extra) | v3 | Vinayak | after item 5 |
+| 12 | Gate pass on every item; combine passers; 3-seed + fold-5 confirmation | PLAN_V4 §2 | both | after 1–9 |
+| 13 | Recipe pick by CV | — | — | by 2 Dec |
+| 14 | Exclusive timing run (end-term) | end-term | idle server | 1–2 Dec |
+| 15 | **Freeze, final retrain, SHA-256, sanity checks, STATUS.md** | G5 | Manjot | 3 Dec |
+
+Closed with verdicts (no rerun): level/offset/recency, Tweedie, CatBoost and MLP blends, NNLS, calibration, horizon split, per-format and per-tier, G3, G3b, G3c, fold 5 (sections 12–26).
+
+Rules: one change at a time against `cs02`; results land as one row per run in `experiments.csv`; every verdict is written here as the next numbered section; the servers always have a queued job.
