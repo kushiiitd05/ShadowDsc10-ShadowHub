@@ -34,6 +34,10 @@ class Config:
     subsample_freq: int = 0
     objective: str = "regression"
     linear_tree: bool = False
+    num_leaves: int = 63
+    min_child: int = 80
+    reg_lambda: float = 1.0
+    extra_trees: bool = False
 
 
 VARIANTS: dict[str, Config] = {
@@ -45,8 +49,24 @@ VARIANTS: dict[str, Config] = {
     "recency365": Config(recency=365.0),
     "recency180": Config(recency=180.0),
     "colsample03": Config(colsample=0.3, subsample_freq=1),
+    "colsample03_nobag": Config(colsample=0.3, subsample_freq=0),
+    "colsample05": Config(colsample=0.5, subsample_freq=1),
+    "colsample02": Config(colsample=0.2, subsample_freq=1),
+    "bag_only": Config(subsample_freq=1),
     "tweedie_init": Config(target="level_init", objective="tweedie"),
     "linear": Config(target="level", linear_tree=True),
+    # round 2: champion = colsample02 (feature fraction 0.2 with row bagging); everything below is a one-change-at-a-time probe
+    "cs02": Config(colsample=0.2, subsample_freq=1),
+    "cs015": Config(colsample=0.15, subsample_freq=1),
+    "cs01": Config(colsample=0.1, subsample_freq=1),
+    "cs02_nobag": Config(colsample=0.2, subsample_freq=0),
+    "cs02_no_te": Config(colsample=0.2, subsample_freq=1, te=False),
+    "cs02_recency365": Config(colsample=0.2, subsample_freq=1, recency=365.0),
+    "cs02_leaves127": Config(colsample=0.2, subsample_freq=1, num_leaves=127),
+    "cs02_leaves31": Config(colsample=0.2, subsample_freq=1, num_leaves=31),
+    "cs02_mcs200": Config(colsample=0.2, subsample_freq=1, min_child=200),
+    "cs02_lambda10": Config(colsample=0.2, subsample_freq=1, reg_lambda=10.0),
+    "cs02_extra": Config(colsample=0.2, subsample_freq=1, extra_trees=True),
 }
 
 
@@ -138,8 +158,8 @@ def fit_variant(ctx: dict, cfg: Config, seed: int, n_jobs: int, lr: float, round
     kwargs = {}
     if cfg.target == "level_init":
         kwargs = {"init_score": np.log(train.loc[mt, "_level"].to_numpy()), "eval_init_score": [np.log(hold.loc[mh, "_level"].to_numpy())]}
-    params = dict(objective=cfg.objective, n_estimators=rounds, learning_rate=lr, num_leaves=63, min_child_samples=80,
-                  subsample=0.85, subsample_freq=cfg.subsample_freq, colsample_bytree=cfg.colsample, reg_lambda=1.0,
+    params = dict(objective=cfg.objective, n_estimators=rounds, learning_rate=lr, num_leaves=cfg.num_leaves, min_child_samples=cfg.min_child,
+                  subsample=0.85, subsample_freq=cfg.subsample_freq, colsample_bytree=cfg.colsample, reg_lambda=cfg.reg_lambda, extra_trees=cfg.extra_trees,
                   random_state=seed, n_jobs=n_jobs, verbosity=-1)
     if cfg.objective == "tweedie":
         params["tweedie_variance_power"] = 1.1
