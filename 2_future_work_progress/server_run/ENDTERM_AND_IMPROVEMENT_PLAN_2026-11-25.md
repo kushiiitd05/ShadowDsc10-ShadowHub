@@ -534,3 +534,21 @@ neuralforecast 3.4.0 in a separate venv; history includes the origin day; closed
 Blend gain over `cs02` (positive = better), folds 1 / 2 / 3 / 4: TiDE w0.1 +.0017 / −.0009 / −.0028 / +.0013; w0.2 +.0006 / −.0044 / −.0076 / −.0002. NHITS w0.1 −.0045 / +.0009 / −.0009 / +.0007; w0.2 −.0167 / +.0008 / −.0028 / +.0004. Best mean gain: TiDE −0.0008, NHITS +0.0003, both far below 0.0024. **TiDE and NHITS not adopted.**
 
 **TabPFN-TS:** fold 4 on 100 hubs only (0.1096 alone vs 0.0938 for `cs02` on those hubs; blend gains +0.0019 / +0.0030 / +0.0033 at weights 0.1 / 0.2 / 0.3). A subset is not a verdict; the full 4-fold run (about 14 min per fold) was still running on Vinayak when the VPN dropped. Verdict after the OOF is pulled and `neural_eval.py` is run.
+
+## 30. Summer-2014 origins, season-filtered member, 7-day origins (1b.2), 25 Nov 21:00: none adopted
+
+16 origins on the 14-day grid (2014-06-01 to 2014-12-28) have a 42-day horizon that touches the 180-hub gap (2014-07-01..12-31); the loader drops them because they are not full 46,830-row blocks. Fold 5 was rebuilt (41,250 rows = 46,830 − 180 hubs × 31 days; the builder reproduces an existing origin file exactly). Control `cs02` reproduces within 0.0001 on folds 1–4 (fold 5: 0.1743 vs 0.1741). 20 tests pass.
+
+Gain over `cs02` (positive = better; mean of seeds 07/08/09):
+
+| Variant | fold 1 | fold 2 | fold 3 | fold 4 | fold 5 | folds ≥ 0.0024 | Gate |
+|---|---|---|---|---|---|---|---|
+| (a) add incomplete summer-2014 origins | +.0011 | +.0012 | +.0009 | +.0018 | n/a | 0 | fail |
+| (b) blend `cs02` + season member, w 0.3 | +.0032 | +.0017 | +.0043 | +.0005 | +.0018 | 2 | borderline |
+| (b) blend w 0.5 | +.0036 | +.0021 | +.0060 | −.0002 | +.0017 | 2 | borderline |
+| (c) dense 7-day origins | +.0009 | −.0006 | −.0008 | −.0021 | −.0006 | 0 | fail |
+
+- (a) mean +0.0013, noise level. Fold 5 cannot change: it can only train on origins ending by 2014-06-19.
+- (b) passes folds 1 and 3 but fails folds 2–4 as a set and fold 5. **Averaging `cs02` with a second `cs02` seed already gains about +0.001, so a good part of (b) is variance reduction, not season information.** The season member alone is poor (4–6 training origins, mean gain −0.0002). Not adopted; to be re-tested only against a two-seed `cs02` control if time remains.
+- (c) doubles rows (0.93 M → 1.80 M), memory (10.5 → 18.8 GB) and fit time (62 → 110 s) for no gain. Not adopted.
+- Season rule ±45 days leaves almost nothing for fold 5 (only July 2013 exists in that season).
