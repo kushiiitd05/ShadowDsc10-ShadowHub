@@ -1,4 +1,10 @@
-# STATUS update 2026-11-24 (end-term and model improvement)
+# STATUS update 2026-11-25 (end-term and model improvement)
+
+**Now:** final plan = `PLAN_V4_FINAL_2026-11-25.md`; run log and results = sections 9–12 of `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-25.md`. Due 8 Dec, presentations 9–10 Dec, model freeze 3 Dec.
+- Weights of the previous best 3-model pipeline recovered by rebuilding (server A `~/Kush/shadowhub_endterm/out_control/`); SHA-256 in `control_manifest.json`; matches the committed ensemble predictions to RMS 3e-5.
+- Champion recipe: LightGBM with feature fraction 0.2 + row bagging (`cs02`), −0.0094 vs base on folds 2–4, −0.021 on fold 1. Round-3 stacks do not pass the gate.
+
+# (earlier) STATUS update 2026-11-24 (end-term and model improvement)
 
 - Read `ENDTERM_AND_IMPROVEMENT_PLAN_2026-11-25.md` first: it records what is running, what verification corrected, the revised end-term design and the decisions still needed.
 - Model weights of the earlier best model were never saved and are not found anywhere; a control rerun with model saving is running on a GPU server (CPU GBDT). Record model path and SHA-256 here when it finishes.
