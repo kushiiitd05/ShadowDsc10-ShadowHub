@@ -21,12 +21,12 @@ def level_baseline(columns: dict[str, np.ndarray]) -> np.ndarray:
 
 
 def encode_target(actual: np.ndarray, level: np.ndarray, mode: str) -> np.ndarray:
-    """Training target for a variant: 'log' = log1p(y); 'level' = log1p(y) - log1p(L); 'level_init' = raw y."""
+    """Training target for a variant: 'log' = log1p(y); 'level' = log1p(y) - log1p(L); 'level_init' and 'raw' = raw y."""
     if mode == "log":
         return np.log1p(actual)
     if mode == "level":
         return np.log1p(actual) - np.log1p(level)
-    if mode == "level_init":
+    if mode in ("level_init", "raw"):
         return np.asarray(actual, dtype=float)
     raise ValueError(f"unknown target mode: {mode}")
 
@@ -43,6 +43,8 @@ def decode_prediction(raw: np.ndarray, level: np.ndarray, mode: str, offset: flo
         return np.clip(np.expm1(raw + np.log1p(level) + offset), 0.0, None)
     if mode == "level_init":
         return np.clip(np.exp(raw + np.log(level) + offset), 0.0, None)
+    if mode == "raw":  # production Tweedie: raw volume, log link, no init_score
+        return np.clip(np.exp(raw + offset), 0.0, None)
     raise ValueError(f"unknown target mode: {mode}")
 
 
