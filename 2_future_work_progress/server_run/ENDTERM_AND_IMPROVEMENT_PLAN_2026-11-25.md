@@ -303,3 +303,21 @@ Working conclusion: the final model is a seed-averaged LightGBM `cs02`, with a f
 | 8 | Zero-day and closure counts and promo / non-promo means over several windows | in G3 streaks; extend in G3b |
 | 9 | Training origins every 7 days instead of 14 | candidate; needs origin rebuild |
 | 10 | Recursive plus direct models | dropped (low plausibility at 42 days, high cost) |
+
+## 17. G3 verdict (25 Nov, 15:00): none of the new features passes the gate
+
+Mean RMSLE over folds 1–4, seed 20260807, against `cs02` 0.1190 (folds 0.1377 / 0.1215 / 0.1129 / 0.1039). Deltas per fold in brackets.
+
+| Variant | Mean | Δ folds 1 / 2 / 3 / 4 | Verdict |
+|---|---|---|---|
+| `dedupe_only` (drop 24 duplicate columns) | 0.1184 | −0.0010 / 0.0000 / −0.0023 / +0.0010 | within seed spread (0.0005 on the mean); harmless, slightly faster fits |
+| `feat_streaks` | 0.1186 | +0.0006 / −0.0012 / −0.0005 / −0.0007 | within noise |
+| `feat_trend` | 0.1207 | +0.0007 / 0.0000 / +0.0039 / +0.0022 | worse |
+| `feat_all` | 0.1321 | **+0.0531** / −0.0001 / +0.0013 / −0.0020 | fold 1 breaks |
+| `feat_weekday_promo` | 0.1304 | **+0.0447** / +0.0001 / +0.0030 / −0.0020 | fold 1 breaks |
+| `dedupe_plus_all` | 0.1269 | +0.0361 / +0.0019 / −0.0011 / −0.0056 | fold 1 breaks |
+
+- **No new feature passes the 0.0024 gate.** On folds 2–4 the groups move the score by at most ±0.002.
+- **Fold 1 breaks with the weekday × promo group:** the forecast origin 2015-01-02 sits right after the 184-day gap (to 2014-12-31) of 180 hubs, so their last 8 weeks have no observations, the medians are missing or stale and the training origins do not look like this. This is the failure the gap-aware group (G3b, next round) is meant to fix, so G3b is now more important than it looked.
+- `dedupe_only` is neutral; it is kept as an option to shorten fit times, not as an improvement.
+- Stage G3 is closed except the gap-aware / year-ago / peer round (G3b), which is being written.
