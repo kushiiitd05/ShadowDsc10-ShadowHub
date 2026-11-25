@@ -173,3 +173,22 @@ Reading: feature subsampling is the only change that passes the gate. Nothing in
 | 9–10 Dec | Present | — |
 
 Rules: rubric track wins any clash with improvement work. Improvement items not finished by 3 Dec go into the conclusion as future work, not into the plots.
+
+## 12. Round 3 verdict (25 Nov, 13:00)
+
+Mean RMSLE over folds 2–4; same-seed reference `cs02` in the first column.
+
+| Variant | seed 20260807 | seed 20260809 | fold 1 (seed 07) |
+|---|---|---|---|
+| `cs02` | 0.1127 | 0.1136 | 0.1379 (base 0.1586) |
+| `cs02_no_te` | 0.1112 | 0.1156 | 0.1349 |
+| `cs02_lambda10` | 0.1116 | 0.1137 | |
+| `cs02_leaves127` | 0.1117 | 0.1126 | |
+| `cs02_l10_127` | 0.1108 | 0.1134 | 0.1335 |
+| `cs02_no_te_l10_127` | 0.1109 | 0.1140 | 0.1294 |
+| `cs02_no_te_l10` | 0.1115 | | |
+
+- Noise of the champion across seeds: 0.0009 on the 3-fold mean; a single fold moves by up to 0.008 (fold 3 of `cs02_no_te`: 0.1122 vs 0.1208).
+- No variant passes the gate (0.0024). The best stack (`cs02_l10_127`) gains 0.0019 on seed 07 but 0.0002 on seed 09, and is worse on fold 2 of seed 09, so it fails the "better on every fold and seed" challenger test. Dropping target encoding helps on seed 07 and fold 1 and hurts on seed 09.
+- **Decision: `cs02` stays champion; no challenger.** The round-2 single-seed gains were mostly noise. Fold 1 (a different season) favours the stacks, so `cs02_l10_127` and `cs02_no_te_l10_127` are kept as optional extras for G4b multi-seed bagging, not as the recipe.
+- Baseline-ensemble jobs B1 (`base`, production Tweedie, production CatBoost) and B2 (the same on `cs02`) are running on folds 1–4; blends are computed offline by `improve/blend.py`.
