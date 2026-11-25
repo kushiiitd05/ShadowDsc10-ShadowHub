@@ -158,3 +158,18 @@ Reading: feature subsampling is the only change that passes the gate. Nothing in
 - G: `cs02_no_te`, `cs02_lambda10`, `cs02_leaves127` on seed 20260809 (noise check).
 - H: `base`, `cs02`, `cs02_no_te` on fold 1 (a fold the champion was not picked on).
 - Pass rule: a stack becomes champion only if it beats cs02 by ≥ 0.0024 on ≥ 2 of 3 folds on both seeds. Otherwise cs02 stays the recipe carried into CatBoost and the blend check.
+
+## 11. Calendar (due date confirmed 25 Nov: submission 8 Dec, presentations 9–10 Dec)
+
+| Dates | Work | Server use |
+|---|---|---|
+| 25–27 Nov | Finish round 3, pick recipe; CatBoost + blend check on it; end-term fixed split and x* model (LightGBM + ridge) built | B: screening; A: end-term build |
+| 28 Nov–1 Dec | End-term experiments: ≥5 sizes × 5 repeats for uniform, hub-stratified, coreset (sensitivity), column sketch; Plots 1–5 data | A and B in parallel (no timing yet) |
+| 1–2 Dec | **Exclusive timing runs** (nothing else on the server) for the speed-up table | one idle server |
+| 3 Dec | **Freeze**: final model recipe, saved weights with SHA-256; no new variants after this | — |
+| 3–5 Dec | Plots, tables, 6–9 slides, reviewer-agent pass, check for banned names/numbers | none |
+| 6–7 Dec | Rehearse to 7 min, fix, buffer | none |
+| 8 Dec | Submit | — |
+| 9–10 Dec | Present | — |
+
+Rules: rubric track wins any clash with improvement work. Improvement items not finished by 3 Dec go into the conclusion as future work, not into the plots.
