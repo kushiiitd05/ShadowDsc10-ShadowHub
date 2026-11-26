@@ -32,8 +32,8 @@ For every forecast origin (train or test), a frozen 42-day forecast table is bui
 - **Legal target lags**: 7/14/28/42/364/728-day lags, each with an `_Available` flag so the model can
   learn to fall back when a lag isn't legally observable at that horizon.
 - **Conversion & volume-per-session ratios**: history-derived `OrderVolume/AppSessions` ratios —
-  the safe way to exploit the sessions signal without ever seeing future sessions (per Rossmann
-  precedent: naive two-stage session forecasting risks compounding two error sources).
+  the safe way to exploit the sessions signal without ever seeing future sessions (naive two-stage
+  session forecasting risks compounding two error sources).
 - **Day-counters**: streak length / days-since / days-until for `Open`, `PromoActive`,
   `RegionalHoliday`, `SchoolClosureFlag`, all right-censored at the visible schedule boundary.
 - **Renovation cohort**: explicit flag + days-since-reopening ramp for the 180-hub missing block.
@@ -66,28 +66,20 @@ validation label window. RMSLE is reported both pooled ("all") and per 7-day hor
 
 ## 6. Results
 
-| Model | Local CV RMSLE (pooled) | Public leaderboard |
-|---|---|---|
-| Hierarchical mean baseline | ~0.144 | — |
-| CatBoost, full feature set | ~0.130 | — |
-| CatBoost + LightGBM, log-mean blend + offset | ~0.123 | — |
-| CatBoost (full history retrain, single model) | — | 0.08528 |
-| Target-encoded HubID + CatBoost + LightGBM + LightGBM-Tweedie, log-mean ensemble | — | **0.06976** |
+| Model | Local CV RMSLE (pooled) |
+|---|---|
+| Hierarchical mean baseline | ~0.144 |
+| CatBoost, full feature set | ~0.130 |
+| CatBoost + LightGBM, log-mean blend + offset | ~0.123 |
 
-The gap between local rolling-origin CV (~0.12-0.13) and the public leaderboard (~0.07-0.09) is larger
-than expected in the favorable direction, most likely because the CV folds intentionally sit in a
-harder, sparser stretch of history (adjacent to the 180-hub renovation gap) than the test window.
-This is flagged as an open question rather than assumed to be free improvement.
+The final ensemble (target-encoded `HubID` + CatBoost + LightGBM + LightGBM-Tweedie, log-mean) was
+refitted on the full history, so it has no local CV score of its own.
 
 ## 7. Reproducibility
 
 Entire pipeline (raw CSVs → engineered features → trained models → submission) runs end-to-end from
 only the competition's provided files, with no external data, no manual steps once started, via
-`scripts/kaggle_kernel/kaggle_end_to_end.py` — pushed and executed as a Kaggle kernel:
-`kaggle.com/code/kushtokas/solari-full-pipeline`. All randomness (`CatBoostRegressor`, `LGBMRegressor`,
-`TargetEncoder` validation split) is seeded with the single disclosed value `20260807`. This kernel run
-(version 3) is the artifact behind the final submitted score of 0.06976.
+`scripts/kaggle_kernel/kaggle_end_to_end.py`. All randomness (`CatBoostRegressor`, `LGBMRegressor`,
+`TargetEncoder` validation split) is seeded with the single disclosed value `20260807`.
 
-**Links** (private — visible to reviewers granted access, per competition rules against public sharing):
-- Pipeline kernel: `kaggle.com/code/kushtokas/solari-full-pipeline`
-- This write-up as a notebook: `kaggle.com/code/kushtokas/solari-writeup`
+The maintained end-term work, with executed notebooks, is in `3_endsem/` at the repository root.
