@@ -6,6 +6,7 @@ Read `docs/INDEX.md` for which file says what.
 | Folder | Holds | Status |
 |---|---|---|
 | [`1_midterm/`](1_midterm/) | **The submission.** Raw data, analysis code, tests, results, figures, LaTeX report, README | Due 27 Oct 2026. Member contributions still to be confirmed |
+| [`3_endsem/`](3_endsem/) | **The end-term submission.** Report (PDF + LaTeX), executed notebook, all code, results, figures, frozen forecaster with hashes, freeze audit, presentation brief | Due 8 Dec 2026; presentations 9-10 Dec. Member contributions still to be confirmed |
 | [`2_future_work_progress/`](2_future_work_progress/) | Everything that is not the submission: `kaggle_modelling/` (earlier modelling work, frozen), `improvement_plan/` (next steps), `midterm_v0_archive/` (first report version), `server_run/` (hand-off files for the server session) | Improvement work not started |
 
 The midterm report has **no model content**; modelling lives in `2_future_work_progress/`.
