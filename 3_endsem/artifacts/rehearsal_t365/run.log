@@ -1,0 +1,13 @@
+FINAL recipe hp17, blend test_pred_tabpfnts.csv w=0.2: origin 2015-06-19, targets from 2015-06-20, 37 training origins (labels end 2015-06-19)
+origin files verified against the manifest in 0s
+origins loaded in 12s
+hub encoding in 2s
+train rows 1434050 (of 1732710 loaded), 342 columns, 40282 open prediction rows
+lightgbm seed 20260807: fit 187s
+lightgbm seed 20260808: fit 254s
+lightgbm seed 20260809: fit 210s
+{
+  "mode": "final",
+  "train_rows": 1434050,
+  "submission_sha256": "0037034bdc35eb2f7fca3563121def46334cd51f6dd049d88c2a6dcfeb26ebe5"
+}

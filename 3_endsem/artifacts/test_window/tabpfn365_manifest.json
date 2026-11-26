@@ -1,0 +1,32 @@
+{
+  "member": "tabpfnts",
+  "predictions_file": "test_pred_tabpfnts.csv",
+  "predictions_sha256": "3c2f6c403b7efaf5ee72fc9c6f6129ab00fdc2f24ee90fb02de944faa3e8058e",
+  "npy_file": "test_pred_tabpfnts.npy",
+  "npy_sha256": "7a390c6b0571c3236c377dbc09a4b3cbfc7d43ddab9d88c4b94582443e9d4b9b",
+  "rows": 46830,
+  "hubs": 1115,
+  "forecast_origin": "2015-06-19",
+  "first_target_date": "2015-06-20",
+  "last_target_date": "2015-07-31",
+  "history_last_date": "2015-06-19",
+  "settings": {
+    "backbone": "TabPFN v2",
+    "context": 365,
+    "impute_closed": 1,
+    "horizon": 42,
+    "covariates": [
+      "IsOpen",
+      "PromoActive",
+      "RegionalHoliday",
+      "SchoolClosureFlag",
+      "calendar"
+    ],
+    "test_frame_sha256": "20a6426fcf8a39f6ff741d08e874aad12dcd3edb1e28b85b0dc3f77c1366d135"
+  },
+  "closed_rows": 6548,
+  "mean_log1p_open": 8.764591419259759,
+  "median_log1p_open": 8.763621558086712,
+  "predict_seconds": 772.9,
+  "test_frame_sha256": "20a6426fcf8a39f6ff741d08e874aad12dcd3edb1e28b85b0dc3f77c1366d135"
+}

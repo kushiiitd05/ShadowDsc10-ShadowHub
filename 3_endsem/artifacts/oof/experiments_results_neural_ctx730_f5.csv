@@ -1,0 +1,2 @@
+date,variant,seed,model,config,config_hash,lr,rounds,n_jobs,mean_all,mean_excl_open0,mean_bias_open,fit_seconds,fold5_all,fold5_excl_open0,fold5_best_iter
+2026-11-25,tabpfnts,20260807,tabpfnts,"{""context"": 730, ""folds"": ""5"", ""impute"": 1, ""input_size"": 180, ""lr"": 0.001, ""model"": ""tabpfnts"", ""n_hubs"": null, ""no_record"": false, ""scaler"": ""standard"", ""seed"": 20260807, ""steps"": 1500}",45e2d4f458,0.001,1500,1,0.18757067371424493,0.13023524748781407,0.06400046856321595,899.5,0.18757067371424493,0.13023524748781407,1500

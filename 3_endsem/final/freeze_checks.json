@@ -1,0 +1,35 @@
+{
+  "submission_sha256": "7d44a05089c6174d20afb07fb6a72414b540794f6ca86e2ae94ed483c0fc4484",
+  "submission_sha_matches_manifest": true,
+  "blend_file_sha_matches_manifest": true,
+  "rows": 46830,
+  "rows_ok": true,
+  "id_order_equals_sample_submission": true,
+  "id_order_equals_test_frame": true,
+  "any_nan_or_inf": false,
+  "any_negative": false,
+  "closed_rows": 6548,
+  "closed_rows_exact_zero": true,
+  "open_rows_predicted_zero": 0,
+  "pre_blend_max_abs_log_diff": 0.0,
+  "final_formula_max_abs_log_diff": 0.0,
+  "manifest_recipe": "hp17",
+  "manifest_variant": "hp17_fix1000",
+  "manifest_blend_weight": 0.2,
+  "manifest_space": "log1p",
+  "manifest_training_origins": 37,
+  "manifest_last_label_date": "2015-06-19",
+  "manifest_has_exact_command": false,
+  "manifest_versions": {
+    "python": "3.11.18",
+    "lightgbm": "4.7.0",
+    "numpy": "1.25.2",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.7.2"
+  },
+  "model_sha256": {
+    "lightgbm_s20260807": "613aa09dedaa65b796dcc39cee89374b1ceee96fb4e3ebc005b2f31c33b1a816",
+    "lightgbm_s20260808": "d0a4af424ff9f300c9aab70a92ce557ad57e136f6296aed8051ecc662412dc4a",
+    "lightgbm_s20260809": "fa798ad0c64b95eb3556361cdf37630d2a5011c96b1040b061636d66e50c6ba7"
+  }
+}

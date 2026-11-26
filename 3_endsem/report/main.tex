@@ -1,0 +1,592 @@
+%=======================================================================
+%  CSE558 Data Science - End-term Project Report (built on the official template, same layout as the midterm)
+%  Monsoon 2026, IIIT-Delhi.  Group DSC 10.
+%  Every number comes from 3_endsem/results/*.csv or *.json (see README, "number -> file" table).
+%  Compile:  tectonic main.tex
+%=======================================================================
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\newcommand{\projecttitle}{Smaller data, same forecast: sensitivity-sampling coresets for 42-day hub demand,
+  and an audited, frozen forecaster}
+
+%-------------------------------------------- fonts (book serif body, every measured quantity in mono)
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}\usepackage[utf8]{inputenc}\usepackage{XCharter}\usepackage[scaled=0.86]{beramono}
+\else
+  \usepackage{fontspec}
+  \setmainfont{Charter}[BoldFont={Charter Bold},ItalicFont={Charter Italic},BoldItalicFont={Charter Bold Italic}]
+  \setsansfont{Avenir Next}[Scale=0.92]
+  \setmonofont{Menlo}[Scale=0.80]
+\fi
+
+%----------------------------------------------------------- packages
+\usepackage[margin=16mm,bottom=19mm,columnsep=6.5mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tabularx,array,booktabs,multirow}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{needspace}
+\usepackage[font=small,labelfont={bf,sf}]{caption}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{tikz}
+\usepackage{hyperref}
+
+%------------------------------------------------------------- tokens (DIP "photometric" series)
+\definecolor{ink}{HTML}{0E1116}
+\definecolor{greytext}{HTML}{4A515E}
+\definecolor{greysoft}{HTML}{878E9A}
+\definecolor{rule}{HTML}{D8DCE2}
+\definecolor{ultra}{HTML}{1B36C4}     % only: exactly verified claims, our method
+\definecolor{amber}{HTML}{C77800}     % only: limitations, losses
+\definecolor{wa}{HTML}{1F2430}\definecolor{wb}{HTML}{4A515E}\definecolor{wc}{HTML}{878E9A}
+\definecolor{wd}{HTML}{C4C9D0}\definecolor{we}{HTML}{E8EBEF}
+\hypersetup{colorlinks=true, urlcolor=ultra, linkcolor=ultra, citecolor=ultra, breaklinks=true,
+            pdftitle={\projecttitle}, pdfsubject={CSE558 Data Science, Monsoon 2026: End-term Project Report}}
+\color{ink}
+
+\newcommand{\stepwedge}{\par\noindent{\setlength{\fboxsep}{0pt}%
+  \colorbox{wa}{\makebox[0.2\linewidth]{\rule{0pt}{1.4mm}}}\colorbox{wb}{\makebox[0.2\linewidth]{}}%
+  \colorbox{wc}{\makebox[0.2\linewidth]{}}\colorbox{wd}{\makebox[0.2\linewidth]{}}\colorbox{we}{\makebox[0.2\linewidth]{}}}\par}
+\newcounter{glyph}
+\newcommand{\glyph}{\stepcounter{glyph}\begin{tikzpicture}[x=1.35mm,y=1.35mm,baseline=0.2mm]
+  \foreach \i in {0,...,4}{\foreach \j in {0,...,4}{\fill[greysoft!55] (\i,-\j) circle (0.18);}}
+  \pgfmathtruncatemacro{\gi}{mod(\value{glyph}-1,5)}\pgfmathtruncatemacro{\gj}{div(\value{glyph}-1,5)}
+  \fill[ultra] (\gi,-\gj) circle (0.36);\end{tikzpicture}}
+\titleformat{\section}[display]{\normalfont\large\bfseries}{\glyph\hspace{1.6mm}{\sffamily\footnotesize\color{greytext}SECTION~\thesection}}{1pt}{}
+\titlespacing*{\section}{0pt}{8pt}{2pt}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{6pt}{1pt}
+\newcommand{\sectionbreak}{\needspace{8\baselineskip}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3.2pt}
+\setlist{leftmargin=1.1em, itemsep=1pt, topsep=1pt, parsep=0pt}
+\renewcommand{\arraystretch}{1.12}
+\setlength{\tabcolsep}{3.2pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{M}{>{\ttfamily}r}
+\newcolumntype{O}{>{\ttfamily\bfseries\color{ultra}}r}
+\newcommand{\key}[1]{\textbf{\textcolor{ultra}{#1}}}
+\newcommand{\warn}[1]{\textbf{\textcolor{amber}{#1}}}
+\newcommand{\n}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\thh}[1]{{\sffamily\scriptsize\bfseries\color{greytext}\MakeUppercase{#1}}}
+\newcommand{\FIG}{../figures/}
+
+\newtcolorbox{stamp}[1]{enhanced,colback=white,colframe=ultra,boxrule=0.6pt,arc=0pt,left=3pt,right=3pt,top=2pt,bottom=2pt,
+  fonttitle=\sffamily\scriptsize\bfseries,coltitle=ultra,colbacktitle=white,title=\MakeUppercase{#1},
+  attach title to upper,after title={\par\smallskip},fontupper=\footnotesize}
+\newtcolorbox{limit}[1]{enhanced,colback=amber!6,colframe=amber,boxrule=0pt,leftrule=1.6pt,arc=0pt,left=4pt,right=3pt,top=2pt,bottom=2pt,
+  fonttitle=\sffamily\scriptsize\bfseries,coltitle=amber,title=\MakeUppercase{#1},attach title to upper,after title={\par},fontupper=\footnotesize}
+\newtcolorbox{eqbox}{enhanced,colback=ultra!3,colframe=ultra,boxrule=0pt,leftrule=1.6pt,arc=0pt,left=4pt,right=3pt,top=1pt,bottom=1pt}
+
+\newcommand{\readout}[2]{\begin{minipage}[t]{0.19\linewidth}{\ttfamily\large\color{ultra}#1}\\[-1pt]{\sffamily\scriptsize\color{greytext}#2}\end{minipage}}
+
+\pagestyle{fancy}\fancyhf{}\renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0.3pt}
+\fancyfoot[L]{\sffamily\scriptsize\color{greytext}CSE558 \textbullet\ DSC 10 \textbullet\ End-term report \textbullet\ Shadow Hub}
+\fancyfoot[R]{\ttfamily\scriptsize\color{greytext}\thepage\ / \pageref{LastPage}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[L]{\sffamily\scriptsize\color{greytext}CSE558 \textbullet\ DSC 10 \textbullet\ End-term report}\fancyfoot[R]{\ttfamily\scriptsize\color{greytext}\thepage\ / \pageref{LastPage}}}
+
+%=======================================================================
+\begin{document}
+
+\twocolumn[%
+{\sffamily\footnotesize\bfseries\color{ultra}CSE558 DATA SCIENCE \ \textbullet\ \ END-TERM PROJECT REPORT \ \textbullet\ \ MONSOON 2026\par}
+\vspace{3pt}
+{\LARGE\bfseries\raggedright\projecttitle\par}
+\vspace{3pt}
+{\normalsize\itshape\color{greytext} A 50{,}000-row sensitivity coreset (4.4\% of the training rows) brings LightGBM within 0.0048 RMSLE of the
+full 1.13-million-row fit and beats uniform sampling at every mid size; the improved forecaster that feeds it was frozen only after an
+independent re-computation of its adoption gate.\par}
+\vspace{4pt}
+\readout{0.1022}{full LightGBM, test RMSLE}\hfill
+\readout{0.1070}{coreset m = 50k (uniform 0.1102)}\hfill
+\readout{2.75$\times$}{speed-up incl. build}\hfill
+\readout{2.47}{total sensitivity S (in [2,6])}\hfill
+\readout{+0.0045}{frozen model gain, folds 2--4}
+\vspace{4pt}
+\stepwedge
+\vspace{3pt}
+{\small
+\begin{tabularx}{\linewidth}{@{}L{2.0cm} Y@{}}
+\toprule
+Group & DSC 10 \quad\textbullet\quad Dataset: Shadow Hub database, 1{,}115 hubs, 1 Jan 2013 -- 19 Jun 2015 (raw files in
+  \url{https://github.com/kushiiitd05/ShadowDsc10-ShadowHub/tree/main/1_midterm/data/raw}) \\
+Code \& README & \url{https://github.com/kushiiitd05/ShadowDsc10-ShadowHub/tree/main/3_endsem}
+  (notebook \code{notebook/DSC10\_endterm.ipynb}, scripts in \code{code/}, frozen models in \code{final/}) \\
+\bottomrule
+\end{tabularx}}
+\vspace{2pt}
+{\small
+\begin{tabularx}{\linewidth}{@{}L{0.4cm} L{3.1cm} L{1.6cm} L{4.3cm} Y@{}}
+\toprule
+\thh{\#} & \thh{Name} & \thh{Roll no.} & \thh{Institute email} & \thh{End-term contribution} \\
+\midrule
+1 & Manya Chaturvedi & 2023312 & manya23312@iiitd.ac.in & \warn{to be confirmed by the member} \\
+2 & Kush Tokas & 2023296 & kush23296@iiitd.ac.in & \warn{to be confirmed by the member} \\
+3 & Akash Adur & 2024053 & akash24053@iiitd.ac.in & \warn{to be confirmed by the member} \\
+4 & Anusha Rana & 2023114 & anusha23114@iiitd.ac.in & \warn{to be confirmed by the member} \\
+5 & Sanjeev & 2023483 & sanjeev23483@iiitd.ac.in & \warn{to be confirmed by the member} \\
+\bottomrule
+\end{tabularx}}
+\vspace{8pt}
+]
+
+%-----------------------------------------------------------------------
+\section{Problem, data and the fixed split}
+
+\textbf{Task.} Forecast the daily order volume of each of 1{,}115 retail hubs for the next 42 days. One row is one hub on one
+day. The response is skewed (median about 6{,}000 on open days, 0 on closed days), so every model is fitted on
+$\log(1+y)$ and scored by RMSLE $=\sqrt{\tfrac1N\sum(\log(1+\hat y)-\log(1+y))^2}$; RMSE on the log scale and $R^2$ on the
+log scale are reported beside it, as the end-term brief asks.
+
+\textbf{Rows and columns.} Each training row is a (forecast origin, hub, target day) triple: for an origin $o$ the features
+are built from history up to $o$ only, and the label is the volume on day $o+h$, $h=1..42$. We build 37 origins two weeks
+apart (label windows end by 19 Jun 2015) with \n{342} engineered columns: calendar, promotion and holiday flags known in
+advance, hub metadata, rolling medians over 7--365 days, same-weekday means, a cross-fitted hub target encoding, and data-gap
+flags. The end-term training split has \n{1,133,640} open rows with positive volume; $1{,}133{,}640\times342=\n{387.7}$
+million cells, far above the 3-million floor of the course.
+
+\textbf{Split (fixed once, before any end-term run).} Train = every origin whose 42-day label window ends on or before
+8 May 2015; test = the last 42 training days, 9 May -- 19 Jun 2015 (\n{46,830} rows = 1{,}115 hubs $\times$ 42 days).
+Hyper-parameters of the full model $x^\ast$ are set on a training-only holdout and then frozen. Closed days are \emph{kept}
+in the test set with prediction 0 (their error is 0); this inflates $R^2$, so RMSLE without the open-but-zero rows is also
+reported.
+
+\textbf{Data preparation carried over from the midterm, and what changed for forecasting.} The midterm cleaned the raw file
+(dates parsed, 180 hubs with a six-month gap in 2014 flagged, open days with zero volume flagged, weekday checked against
+the date). For forecasting we added four rules, each because a check failed without it:
+\begin{itemize}
+\item \emph{Features stop at the origin.} Every rolling statistic for origin $o$ is computed from days $\le o$; a test asserts
+  that no history date exceeds the origin. Without it a 7-day median would read the first forecast days.
+\item \emph{Training-origin purge.} An origin is used for training only if its whole 42-day label window ends on or before the
+  forecast origin; otherwise a training label would sit inside the evaluated window.
+\item \emph{Cross-fitted hub encoding.} The hub's mean log volume is a strong feature, but computed on the same rows it is fitted
+  on it leaks the label; scikit-learn's \code{TargetEncoder.fit\_transform} uses internal cross-fitting, and the earlier
+  \code{fit().transform()} pattern (which does not) was replaced.
+\item \emph{Fixed rounds.} Early stopping on the evaluated fold leaks; the final setting uses 1000 rounds at learning rate
+  0.025, fixed before scoring.
+\end{itemize}
+
+\begin{limit}{Overlap with model selection}
+The end-term test window is the same 42 days as our development fold~4, which earlier shaped the \emph{recipe family}
+(feature fraction, learning rate). No fold-4 label enters any end-term fit, sampling probability or column choice, but the
+number is a development-fold result, not an untouched holdout.
+\end{limit}
+
+%-----------------------------------------------------------------------
+\section{The full model \texorpdfstring{$x^\ast$}{x*} and a second model}
+
+\textbf{Why LightGBM.} Volume depends on interactions (weekday $\times$ promotion $\times$ hub format, holiday
+proximity, data gaps) that a tree ensemble captures without hand-made products, and LightGBM handles 1.1M rows $\times$ 342
+columns in about a minute. Recipe (\code{cs02}): 63 leaves, feature fraction 0.2, row bagging 0.85 every iteration,
+min child 80, learning rate 0.05, \n{1184} rounds fixed from the training-only holdout. \textbf{Why ridge as the second
+model.} It is the model for which coreset theory is exact (squared loss, closed form), so it shows what the theory
+predicts; $\lambda=0.1$ was chosen on the same holdout. Both models are trained with identical settings on the full data
+and on every summary.
+
+{\small
+\begin{tabularx}{\linewidth}{@{}Y M M M M@{}}
+\toprule
+\thh{Full model, test split} & \thh{RMSLE} & \thh{excl. open-0} & \thh{$R^2$ (log)} & \thh{fit (s)} \\
+\midrule
+LightGBM $x^\ast$ & \textcolor{ultra}{\textbf{0.1022}} & 0.0932 & 0.9992 & 59.7 \\
+Ridge & 0.1592 & 0.1539 & 0.9980 & 4.3 \\
+\bottomrule
+\end{tabularx}}
+
+The tree model is 36\% lower in RMSLE than ridge. The very high $R^2$ comes mostly from the closed rows (0 vs 0) and from the
+large spread between hubs; the RMSLE is the number to read. Times are from a shared server (Section~4).
+
+%-----------------------------------------------------------------------
+\section{Sampling: rows (Plot 1) and columns}
+
+\textbf{Methods.} (i) \emph{Uniform}: $m$ rows with replacement, weight $n/m$ each (the baseline on every plot).
+(ii) \emph{Hub-stratified}: equal rows per hub (added because the smallest size, 2{,}000, is close to the hub count).
+(iii) \emph{Sensitivity coreset} (Section~5): $p_i=s_i/S$, weight $1/(m\,p_i)$. Sizes $m\in\{2,5,10,25,50,100,200\}\times10^3$;
+each size is repeated 5 times with new seeds for sampling, rough models and training; we plot the median and the min--max band.
+
+\begin{figure}[t]
+\centering\includegraphics[width=\linewidth]{\FIG fig_plot1_rows.pdf}
+\caption{\textsf{PLOT 1.} Test RMSLE against summary size. Look at LightGBM between 5k and 100k: the coreset curve (blue
+diamonds) sits below uniform at every size, by \n{0.0032} at 50k. For ridge all methods lie within \n{0.003} of the full
+model from 5k rows on, so sampling barely matters.}
+\end{figure}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}r M M O M@{}}
+\toprule
+\thh{m} & \thh{uniform} & \thh{hub-strat.} & \thh{coreset} & \thh{coreset$-$unif.} \\
+\midrule
+2k   & 0.1297 & 0.1322 & 0.1318 & \textcolor{amber}{+0.0021} \\
+5k   & 0.1218 & 0.1221 & 0.1195 & $-$0.0023 \\
+10k  & 0.1187 & 0.1203 & 0.1170 & $-$0.0017 \\
+25k  & 0.1133 & 0.1131 & 0.1108 & $-$0.0025 \\
+50k  & 0.1102 & 0.1117 & 0.1070 & $-$0.0032 \\
+100k & 0.1099 & 0.1087 & 0.1058 & $-$0.0041 \\
+200k & 0.1055 & 0.1054 & 0.1045 & $-$0.0010 \\
+\midrule
+full & \multicolumn{4}{r}{\ttfamily 0.1022 (1,133,640 rows)} \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{LightGBM test RMSLE, median of 5 repeats.}
+
+\textbf{Reading.} The coreset wins from 5k to 200k rows; at 2k it ties or loses (the band overlaps), because a
+tree with min child 80 cannot use the extra weight variance at that size. Hub-stratified sampling is no better than
+uniform: equal hub coverage is already reached at 5k rows. At 50k (\n{4.4\%} of the rows) the coreset is \n{0.0048} above
+the full model; uniform needs between 100k and 200k rows for the same error.
+
+\textbf{Columns (one factor at a time; rows fixed at 200k uniform).} Trees cannot use a random projection of the features
+(splits need the original columns), so we compare $k$ columns chosen by gain importance from a rough model fitted on a
+uniform training sample against $k$ random columns.
+
+\begin{figure}[h]
+\centering\includegraphics[width=0.92\linewidth]{\FIG fig_plot1_columns.pdf}
+\caption{\textsf{COLUMNS.} Importance-chosen columns (blue) against random columns (grey). With 40 of 342 columns the
+importance subset scores \n{0.1102}, random columns \n{0.1770}.}
+\end{figure}
+
+Medians, importance vs random: $k=10$ \n{0.1324} vs \n{0.2316}; $k=20$ \n{0.1204} vs \n{0.1658}; $k=80$ \n{0.1087} vs
+\n{0.1248}; $k=160$ \n{0.1058} vs \n{0.1129}. Fewer than half of the columns carry almost all of the signal; 160 random columns
+lose \n{0.0071} against 160 chosen ones. (A Gaussian or CountSketch projection would apply only to ridge; we did not run it, see Section~8.)
+
+%-----------------------------------------------------------------------
+\section{Time (Plot 2) and the speed-up table}
+
+$T_\text{build}$ includes fitting the five rough models on 20k-row uniform samples and scoring all \n{1,133,640} training
+rows; $T_\text{train}$ is the weighted fit on the summary; speed-up $=T_\text{full}/(T_\text{build}+T_\text{train})$.
+
+\begin{figure}[t]
+\centering\includegraphics[width=\linewidth]{\FIG fig_plot2_time.pdf}
+\caption{\textsf{PLOT 2.} End-to-end time against size (log--log). For LightGBM the coreset's fixed build cost (about 10 s)
+dominates below 25k rows; for ridge the build (18.6 s) is larger than the full fit (4.3 s), so the coreset never saves time.}
+\end{figure}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}r M M M O M@{}}
+\toprule
+\thh{LightGBM} & \thh{$T_b$ (s)} & \thh{$T_t$ (s)} & \thh{RMSLE} & \thh{speed-up} & \thh{unif. speed-up} \\
+\midrule
+10k  & 10.2 & 7.4  & 0.1170 & 3.25$\times$ & 8.09$\times$ \\
+25k  & 10.2 & 9.5  & 0.1108 & 3.05$\times$ & 6.28$\times$ \\
+50k  & 10.2 & 11.4 & 0.1070 & 2.75$\times$ & 5.18$\times$ \\
+100k & 10.2 & 14.0 & 0.1058 & 2.45$\times$ & 4.39$\times$ \\
+200k & 10.2 & 21.8 & 0.1045 & 1.85$\times$ & 1.63$\times$ \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{Speed-up against $T_\text{full}=\n{59.7}$ s (LightGBM, 16 threads).}
+
+\textbf{The trade-off.} Uniform is always faster (no build), the coreset is always more accurate from 5k on. To reach a
+given error the coreset needs fewer rows: uniform at 100k (\n{0.1099}, 4.39$\times$) is worse than the coreset at 50k
+(\n{0.1070}, 2.75$\times$). At 200k rows the coreset is both faster and better than uniform (1.85$\times$ vs 1.63$\times$),
+because the weighted sample trains faster than an equally large uniform one in this run.
+
+\begin{limit}{Timings are development timings}
+All times were measured on a shared 128-core server with a load average of 10--30 from other users' jobs. Ratios between
+methods are stable across our reruns, but the absolute seconds are not final; the exclusive-server rerun (fixed core set,
+16 threads, load logged) is listed in Section~8 and has not been done yet.
+\end{limit}
+
+%-----------------------------------------------------------------------
+\section{The coreset (Plots 3--5)}
+
+\textbf{Rough models.} Five models $\tilde x_1..\tilde x_5$ fitted on 20k-row uniform samples with different seeds. Their
+roughness is $\alpha_t=F(P,w,\tilde x_t)/\text{opt}$ with opt $=F(P,w,x^\ast)$; the largest is \n{2.45} for LightGBM and
+\n{1.01} for ridge (a 20k-row ridge is already almost optimal).
+
+\textbf{Sensitivities.} With $f_i$ the squared log error of row $i$ and $F_\text{sum}(\tilde x_t)=\sum_j w_jf_j(\tilde x_t)$,
+\begin{eqbox}
+\[ s_i=\max_{t=1..5}\Big[\frac{f_i(\tilde x_t)}{F_\text{sum}(\tilde x_t)}+\frac1n\Big], \]
+\[ S=\sum_{i=1}^n s_i,\qquad p_i=s_i/S,\qquad w_i=\frac{1}{m\,p_i}. \]
+\end{eqbox}
+Using the sum (not the mean) in the denominator makes $\sum_i f_i/F=1$ per rough model, so $S$ must lie in $[2,6]$ for five
+models and one group; a unit test enforces it. Measured: $S=\n{2.47}$ (LightGBM), \n{2.12} (ridge). The rough models score
+every training row; no test row is ever scored by them. For trees there is no $(1\pm\varepsilon)$ guarantee; we call the method
+\emph{heuristic sensitivity-motivated importance sampling}.
+
+\textbf{Why it should help here.} A row's sensitivity is large when some rough model fits it badly: event days, hubs after a
+data gap, sharp promotion jumps. Uniform sampling sees such rows in proportion to their count (a few per cent), while the
+coreset over-samples them and down-weights them by $1/(mp_i)$, so the weighted loss stays an unbiased estimate of the full
+loss but with lower variance on exactly the rows that drive the error. The $1/n$ term keeps every row reachable, which bounds
+the largest weight. The histogram below shows the mass is spread over three orders of magnitude, with a thin tail of rows
+up to about 250 times the uniform share $1/n$.
+
+\begin{figure}[h]
+\centering\includegraphics[width=\linewidth]{\FIG fig_hist_sensitivity.png}
+\caption{\textsf{SENSITIVITY SCORES} $s_i/S$ over all \n{1,133,640} training rows (log axes). The floor at
+$10^{-6.4}\approx1/(nS)$ is the $1/n$ term; the tail is what the coreset over-samples.}
+\end{figure}
+
+\begin{figure*}[t]
+\centering\includegraphics[width=\linewidth]{\FIG fig_plot345_lgbm.pdf}
+\caption{\textsf{PLOTS 3--5 (LightGBM).} Left: relative training-loss gap; the coreset is lower at every size (\n{0.373} vs
+\n{0.557} at 50k). Middle: test loss over the full model's \emph{training} loss; it levels off near the full model's own
+generalisation ratio $F(P_\text{test},x^\ast)/F(P,x^\ast)-1=\n{1.17}$, not at 0. Right: relative distance between the summary
+model's and $x^\ast$'s test predictions; the coreset is closer at every size (\n{0.0049} vs \n{0.0056} at 50k).}
+\end{figure*}
+
+\textbf{Slopes (log--log, LightGBM).} Plot 3: coreset \n{-0.59}, uniform \n{-0.48}; Plot 5: \n{-0.19} and \n{-0.18};
+ratio Plot~5/Plot~3 for the coreset \n{0.33}. \textbf{Ridge:} Plot 3 \n{-0.78} / \n{-0.99}; Plot 5 \n{-0.52} / \n{-0.50};
+ratio \n{0.66}. For ridge the parameter error should fall at about half the rate of the loss gap (a gap $\varepsilon$ in the
+loss corresponds to $\sqrt{\varepsilon}$ in the parameters); the measured \n{0.66} is close. For trees no such relation is
+guaranteed and the ratio is smaller (\n{0.33}): the prediction vector moves slowly even when the training loss gap closes fast.
+
+\textbf{Ridge.} The coreset helps the training gap at small sizes (\n{0.030} vs \n{0.084} at 2k), but the test error is
+the same for every method (\n{0.159}--\n{0.166}) and the build costs more than the full fit. Honest negative: for a cheap
+convex model, sampling saves nothing.
+
+\begin{figure*}[t]
+\centering\includegraphics[width=\linewidth]{\FIG fig_plot345_ridge.pdf}
+\caption{\textsf{PLOTS 3--5 (RIDGE).} Here the theory is exact. The coreset closes the training gap faster at small sizes
+(left), the test ratio is flat for both methods (middle: the model is too simple to over-fit), and the coefficient distance
+(right) falls at \n{0.66} times the rate of the training gap, close to the predicted one half.}
+\end{figure*}
+
+\textbf{Plot 4 needs care.} Its denominator is the \emph{training} loss of $x^\ast$, so even $y^\ast=x^\ast$ gives
+$F(P_\text{test},x^\ast)/F(P,x^\ast)-1=\n{1.17}$ for LightGBM: the full tree model fits its training rows about twice as well
+as unseen days. Both methods therefore level off near \n{1.17}--\n{1.3}, and the coreset approaches that floor faster
+(\n{1.38} vs \n{1.52} at 50k). For ridge the floor is about \n{0.16}, and the curves sit on it from 5k rows on.
+
+\begin{stamp}{Checks that held exactly}
+$S$ in $[2,6]$ for both models (\n{2.47}, \n{2.12}) \textbullet\ 5 repeats $\times$ 7 sizes $\times$ 3 methods $\times$ 2 models
+= \n{210} summary fits plus \n{50} column fits, all in \code{results/endterm\_run1\_results.csv} \textbullet\ same model settings on
+full data and every summary \textbullet\ test rows never used for fitting, sampling probabilities or column choice.
+\end{stamp}
+
+%-----------------------------------------------------------------------
+\section{Improving \texorpdfstring{$x^\ast$}{x*}: what we tried, what failed and why}
+
+The end-term model is only as good as $x^\ast$, so in parallel we tried to improve the forecaster itself. Evaluation uses
+rolling forecast origins: development folds 1--4 start on 2 Jan, 13 Feb, 27 Mar and 8 May 2015 (46{,}830 rows each); fold 5
+starts on 19 Jun 2014 and is season-matched to the real forecast window, which also has no regional holidays.
+
+\begin{eqbox}\small\textbf{Adoption gate, fixed before the runs.} A change is adopted only if (a) its mean gain over
+the baseline on folds 2--4 is $\ge\n{0.0024}$, twice the measured seed-to-seed noise \n{0.0012}; (b) at least 2 of the 3
+folds improve; (c) the sign is the same for seeds 20260807/08/09; (d) it still holds without open-but-zero rows; (e) fold 5
+is checked. Better on most folds but missing the gate = \emph{challenger}, not adopted.
+\end{eqbox}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}Y M@{}}
+\toprule
+\thh{Step (mean RMSLE, folds 1--4)} & \thh{RMSLE} \\
+\midrule
+Earlier 3-model blend (CatBoost + LightGBM + Tweedie), re-scored on corrected folds & 0.1250 \\
+LightGBM \code{base} (feature fraction 0.8) & 0.1312 \\
+\code{cs02}: feature fraction 0.2 + row bagging, 1 seed (seeds 0.1190 / 0.1186 / 0.1191) & 0.1190 \\
+\code{cs02}, 3 seeds averaged in log space & 0.1173 \\
+\code{cs02}, lr 0.025, 1000 fixed rounds, 3 seeds (\emph{like-for-like baseline}) & 0.1170 \\
+\code{hp17}, same setting, 3 seeds & 0.1141 \\
+\textbf{\code{hp17} + TabPFN-TS (mix of contexts), weight 0.2 (frozen)} & \textcolor{ultra}{\textbf{0.1129}} \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{From the earlier blend to the frozen model. Last two rows: our re-computation from saved predictions.}
+
+\textbf{What worked, and why.} \emph{Feature fraction 0.2 with bagging} ($0.1312\to0.1190$): with 342 correlated
+columns (many rolling windows of the same series), each tree sees a small random subset, which decorrelates the trees and
+stops a few long-window medians from dominating. \emph{Seed averaging} (\n{-0.0017}): free variance reduction.
+\emph{\code{hp17}} (255 leaves, min child 160, L2 24.1, feature fraction 0.15): bigger trees with strong shrinkage of leaf
+values fit hub-specific weekday and promotion patterns without over-fitting small hubs. \emph{TabPFN-TS}: a pretrained
+tabular foundation model run per hub on its own history; its errors are different from the trees' (it reads each series'
+recent level directly), so a 20\% log-space blend helps.
+
+\textbf{Searches (all on the same folds, so the best is optimistic).} A 20-config random search found \code{hp17} as the only
+config better on all four folds (best of 19). Eight neighbours (L2 10/50, 127/511 leaves, min child 320, feature fraction
+0.1/0.2, fixed rounds) all landed within \n{0.002}: a plateau, not a lucky point. A pooled Optuna search (TPE, 2 sampler
+seeds, 80 trials, objective = folds 2--3 blend RMSLE) found \n{0.1105} against \n{0.1109} for \code{hp17}: \n{0.0004}, inside the
+noise, so no replacement. TabPFN-TS context lengths 365 / 540 / 730 days and weights 0.1--0.5 were compared offline; the grid is
+flat within \n{0.001}--\n{0.002}.
+
+\begin{figure}[h]
+\centering\includegraphics[width=0.92\linewidth]{\FIG fig_optuna.pdf}
+\caption{\textsf{OPTUNA, 80 TRIALS.} The ten best trials span only \n{0.0005}; the whole good region (255--383 leaves,
+feature fraction 0.17--0.21) sits inside one noise band. Searching further would add selection bias, not accuracy.}
+\end{figure}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}l M M M M M M@{}}
+\toprule
+\thh{config} & \thh{col} & \thh{leaves} & \thh{minc} & \thh{L2} & \thh{4-fold} & \thh{gain 2--4} \\
+\midrule
+\textbf{hp\_017} & 0.15 & 255 & 160 & 24.1 & \textcolor{ultra}{\textbf{0.1149}} & +.0025 \\
+hp\_006 & 0.10 & 63 & 320 & 22.7 & 0.1174 & +.0002 \\
+hp\_014 & 0.15 & 255 & 160 & 2.9 & 0.1175 & $-$.0002 \\
+hp\_008 & 0.10 & 255 & 40 & 0.7 & 0.1178 & +.0007 \\
+hp\_000 (=\code{cs02}) & 0.20 & 63 & 80 & 1.0 & 0.1190 & 0 \\
+hp\_016 & 0.15 & 31 & 80 & 3.6 & 0.1234 & \textcolor{amber}{$-$.0027} \\
+hp\_004 & 0.15 & 31 & 160 & 0.35 & 0.1242 & \textcolor{amber}{$-$.0066} \\
+hp\_005 & 0.40 & 31 & 320 & 7.1 & 0.1252 & \textcolor{amber}{$-$.0060} \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{20-config random search (seed 07, lr 0.05, early stopping): top 4, control, bottom 3. Pattern: 255 leaves +
+strong L2 + large min child win; every 31-leaf tree loses on every fold.}
+
+\textbf{TabPFN-TS: context length and weight.} The member reads the last $C$ days of each hub. With $C=365$ it loses
+\n{0.0024} on winter fold~1 (our reading: with one year of context it sees a single year-end and copies it); $C=730$ fixes fold~1 but loses on
+fold~5, where only about 535 days of history exist. The equal log-space mix of both is the only input that does not lose on
+fold~1 and fold~5 at the same time, and its folds 2--4 gain (\n{0.0045}) is within noise of 730 alone (\n{0.0053}).
+
+\begin{figure*}[t]
+\centering\includegraphics[width=\linewidth]{\FIG fig_tabpfn_grid.pdf}
+\caption{\textsf{TABPFN-TS GRID} (offline on saved predictions; \code{hp17} 3-seed average + TabPFN-TS at weight $w$, gain over
+\code{cs02}). Look at the dotted line ($w=0.2$): the mix (blue) is never the best curve on any single panel, but it is the only
+one that is positive and near the top on all three. Higher weights help folds 2--4 by $\le$\n{0.0010} (below noise) and hurt fold~5.}
+\end{figure*}
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}L{2.55cm} L{2.15cm} Y@{}}
+\toprule
+\thh{Idea} & \thh{Measured} & \thh{Why it failed (our reading)} \\
+\midrule
+Level target, offsets, recency weights & lose or tie & trees already learn level from the rolling medians; a global shift cannot fix hub-specific bias \\
+Tweedie, CatBoost, 3-model blend & 0.1178 vs 0.1173 & members too correlated with LightGBM; blend adds nothing over seed averaging \\
+NNLS blend weights; calibration $a+b\hat y$ & 0.1192 vs 0.1184; worse & weights fitted on few folds over-fit; calibration is unstable across seasons \\
+Horizon split, per-format models & 0.1190; worse & smaller training sets per model lose more than they gain \\
+New features (trend, streaks, year-ago, peers; 3 rounds) & fold 4 $-$0.002..$-$0.005, fold 3 flips & lead did not replicate on new seeds; signal already in existing columns \\
+Event-day features & worse or equal & the target window has no regional holidays \\
+MLP, Chronos-2, TiDE, NHITS & best blend +0.0019 on one fold & weaker alone (MLP fold 1 0.2454); gains below noise \\
+Summer origins, 7-day origins & +0.0013; worse & noise; doubles memory \\
+SVD, two-stage, peer residuals, reconciliation, regime experts & $\le$ +0.0027 on 1 of 3 folds & below gate or fold-specific \\
+Shift adaptation & +0.0011..0.0016, all folds & consistent but below gate; needs an extra forecast \\
+Importance pruning (81 cols) & $-$0.0063 / $-$0.0051 & low-importance columns still help on some folds \\
+Per-tier member on \code{hp17} & worse than plain & tier split shrinks the data for big trees \\
+Hurdle model & $\le$1 open-zero row per fold & nothing to model \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{Experiment ledger, negatives included (more than 40 ideas; full table in \code{results/experiment\_ledger.md}).}
+
+Error analysis of \code{cs02}: the 10 worst of 168 forecast days carry 28\% of the squared error, and they are event days
+(holidays, Easter, Sundays, school closures; RMSLE \n{0.267} vs \n{0.133}). This is why feature and model ideas that target
+ordinary days gave so little.
+
+%-----------------------------------------------------------------------
+\section{Freeze audit: independent re-computation}
+
+Before freezing, every gate number was recomputed from the saved out-of-fold prediction files with a separate script
+(\code{code/freeze\_audit.py}), not taken from the run logs. Candidate formula, for hub $h$ and day $t$
+($\ell=\log(1+\cdot)$, closed days $=0$, clipped at 0):
+\begin{eqbox}\small
+\[ L_{h,t}=0.8\cdot\tfrac13\!\!\sum_{s\in\{07,08,09\}}\!\!\ell\big(\hat y^{\,\text{hp17}}_{s}\big) \]
+\[ \qquad +0.2\cdot\tfrac12\Big(\ell\big(\hat y^{\,\text{TPF},365}\big)+\ell\big(\hat y^{\,\text{TPF},730}\big)\Big) \]
+\[ \hat y_{h,t}=\max\big(0,\;e^{L_{h,t}}-1\big)\ \text{if open, else }0. \]
+\end{eqbox}
+
+\begin{figure*}[t]
+\centering\includegraphics[width=0.82\linewidth]{\FIG fig_gate_gains.pdf}
+\caption{\textsf{GATE.} Gain over the like-for-like baseline. \code{hp17} alone misses the gate on folds 2 and 4; with
+TabPFN-TS (mix of contexts, blue) all three folds 2--4 clear it. The 365-day-only fallback loses on winter fold~1 (hatched).}
+\end{figure*}
+
+{\small
+\begin{tabularx}{\linewidth}{@{}Y M M M M M M@{}}
+\toprule
+\thh{gain vs cs02} & \thh{f1} & \thh{f2} & \thh{f3} & \thh{f4} & \thh{f5} & \thh{2--4} \\
+\midrule
+seed 07 & +.0024 & +.0055 & +.0044 & +.0043 & +.0035 & .0047 \\
+seed 08 & +.0038 & +.0043 & +.0062 & +.0034 & +.0075 & .0047 \\
+seed 09 & +.0039 & +.0040 & +.0065 & +.0032 & +.0067 & .0046 \\
+3-seed avg & +.0031 & +.0045 & +.0054 & +.0035 & +.0057 & \textcolor{ultra}{\textbf{.0045}} \\
+excl. open-0 & & & & & +.0089 & .0046 \\
+\midrule
+\code{hp17} alone & +.0058 & +.0005 & +.0045 & +.0007 & +.0038 & \textcolor{amber}{.0019} \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{Recomputed gate (fold 5 = the 935 hubs with a full 42-day block, 39{,}270 rows).}
+
+Absolute 3-seed RMSLE, baseline $\to$ frozen model: fold 1 \n{0.1334$\to$0.1302}, fold 2 \n{0.1186$\to$0.1141}, fold 3
+\n{0.1128$\to$0.1073}, fold 4 \n{0.1034$\to$0.0998}, fold 5 \n{0.1794$\to$0.1737}. All five gate conditions pass on every seed;
+\code{hp17} alone fails (a) and (d).
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}L{0.35cm} L{2.4cm} L{0.85cm} Y@{}}
+\toprule
+\thh{\#} & \thh{Check} & \thh{Result} & \thh{Evidence} \\
+\midrule
+1 & Formula = implementation & \key{PASS} & log1p blend 0.8/0.2, closed 0, clip 0, \code{hp17\_fix1000} registry check; rehearsal output rebuilt from members with max $|\Delta\ell|=0$ \\
+2 & No leakage & \key{PASS} & training labels end 19 Jun 2015 = forecast origin; TabPFN history ends 19 Jun (both manifests); hub encoding cross-fitted on training rows only; no test labels exist \\
+3 & Gate from OOF files & \key{PASS} & table above; matches the run logs within \n{0.0001} rounding \\
+4 & 365/730 mix & \key{PASS} & rebuilt from the two files: max $|\Delta\ell|=0$ on 187{,}320 dev rows and 46{,}830 test rows; SHA-256 matches \\
+5 & Bagging active & \key{PASS} & saved boosters: \code{bagging\_fraction 0.85}, \code{bagging\_freq 1}, 1000 trees \\
+6 & Final retrain & \warn{COND.} & real path, own folder, nothing overwritten; 13/13 sanity checks pass; a second run of the same recipe is not bit-identical (RMS log difference \n{0.0017}; seed-to-seed is \n{0.019}) \\
+7 & Wording & \key{PASS} & no outside scores, rankings or ``state of the art''; folds 1, 4, 5 called diagnostics \\
+\bottomrule
+\end{tabularx}}
+\captionof{table}{Freeze audit (full write-up: \code{docs/FREEZE\_AUDIT.md}).}
+
+\begin{stamp}{Frozen artifact (final retrain, 26 Nov 2026) \textendash\ decision: GO}
+\input{freeze_stamp.tex}
+\end{stamp}
+
+\begin{limit}{Selection effects we cannot remove}
+\code{hp17} was the best of 19 configs and its gain shrank on fresh seeds; the 365/730 mix was defined after seeing both;
+the weight 0.2 was the middle of a flat curve on folds 2--4, which include fold 4; TabPFN-TS was configured on a 100-hub fold-4
+smoke run. About 120 recipe variants were scored on the same folds (20 + 8 + 80 + contexts + weights + about 40 ideas). Folds 1,
+4 and 5 are confirmation diagnostics, not untouched test sets, and the real forecast window has no labels in this project, so no
+real test score exists.
+\end{limit}
+
+%-----------------------------------------------------------------------
+\section{Reproducibility, and questions we expect}
+
+\textbf{What is in the repository} (\code{3\_endsem/}): \code{notebook/DSC10\_endterm.ipynb} (executed; rebuilds every table
+and figure of this report from \code{results/} and recomputes the gate from the saved out-of-fold files in a few seconds);
+\code{code/} (end-term experiment, coreset and plotting scripts, the final-retrain and sanity-check scripts, the audit);
+\code{final/} (the three frozen LightGBM boosters, compressed, the forecast file and the manifest with SHA-256 of every file);
+\code{artifacts/} (out-of-fold predictions, TabPFN-TS predictions, both rehearsal runs); \code{MANIFEST.sha256} (SHA-256 of
+every file). The heavy steps (building 37 origin tables, 260 end-term fits, TabPFN-TS on a GPU) need the full data and
+1--2 hours on a server; the notebook runs on a laptop from the saved outputs.
+
+{\footnotesize
+\begin{tabularx}{\linewidth}{@{}L{2.6cm} Y@{}}
+\toprule
+\thh{Question} & \thh{Answer from our files} \\
+\midrule
+Why sensitivity sampling for trees? & No guarantee exists, but rows that rough models fit badly are the ones a small sample
+  misses; Plot~1 shows the empirical gain (\n{0.0032} at 50k) and Plot~5 shows the summary model stays closer to $x^\ast$. \\
+Why ridge at all? & It is the case where the theory is exact, so it checks our implementation: $S=\n{2.12}$ and the
+  Plot~5/Plot~3 slope ratio \n{0.66} behave as predicted. \\
+What is the noise floor? & Seed-to-seed change of the same recipe: \n{0.0012} on the 3-fold mean. The gate is twice that. \\
+Is fold~4 a clean test? & No. It shaped the recipe family earlier; we report it as a development-fold result. \\
+Why not tune more? & 80 Optuna trials found \n{0.0004} over \code{hp17}, a third of the noise; more trials add selection bias. \\
+Does the time split shift? & Yes: winter fold~1 behaves differently (TabPFN-TS 365 loses there); the forecast window is summer, matched by fold~5. \\
+\bottomrule
+\end{tabularx}}
+
+%-----------------------------------------------------------------------
+\section{Limitations and open items}
+
+\begin{itemize}
+\item \textbf{Timing.} Development timings only; exclusive rerun pending (Section~4).
+\item \textbf{Winter.} The frozen model is \n{0.0027} worse than \code{hp17} alone on fold~1 (winter, year-end); the forecast
+  window is summer and fold~5 improves, so we accept it, but it is unexplained.
+\item \textbf{Trees.} The coreset has no guarantee for trees; its advantage at mid sizes is empirical (5 repeats, 1 split). A
+  check with unnormalised weights at one size was planned and not run.
+\item \textbf{Columns.} Gaussian/CountSketch projections for ridge were not run; only the column-selection experiment for trees.
+\item \textbf{Fold 5} covers 935 of 1{,}115 hubs (180 hubs lack 2014 H2 data); its error is larger because of 9 open-zero rows.
+\item \textbf{Closed rows} inflate $R^2$; read RMSLE first.
+\end{itemize}
+
+%-----------------------------------------------------------------------
+\section{Conclusion}
+
+\textbf{Chosen summary size: $m=50{,}000$ rows with the sensitivity coreset.} There the LightGBM test RMSLE rises from
+\n{0.1022} to \n{0.1070} (\n{+0.0048}), RMSE on the log scale is the same number, and $R^2$ stays above \n{0.998}; end-to-end
+time falls from \n{59.7} s to \n{21.6} s (\n{2.75$\times$}). Uniform sampling at the same size is faster (\n{5.18$\times$}) but
+\n{0.0032} worse, and needs two to four times as many rows to match. For ridge, sampling saves no time and changes nothing:
+the build costs more than the full fit. The forecaster behind $x^\ast$ was improved by \n{0.0045} RMSLE on folds 2--4 over a
+like-for-like baseline, passed a gate fixed in advance, and was frozen with hashes, sanity checks and a fallback.
+
+{\footnotesize\textbf{References.} [1] O.~Bachem, M.~Lucic, A.~Krause, \emph{Practical coreset constructions for machine learning},
+arXiv:1703.06476, 2017. [2] D.~P.~Woodruff, \emph{Sketching as a tool for numerical linear algebra}, arXiv:1411.4357, 2014.
+[3] P.~Ma, M.~W.~Mahoney, B.~Yu, \emph{A statistical perspective on algorithmic leveraging}, arXiv:1306.5362, 2013.
+[4] S.~Hoo et al., \emph{From tables to time: how TabPFN-v2 outperforms specialized time series forecasting models},
+arXiv:2501.02945, 2025. [5] G.~Ke et al., \emph{LightGBM: a highly efficient gradient boosting decision tree}, NeurIPS 2017.
+[6] CSE558 lectures 13--22 (sensitivity sampling, Johnson--Lindenstrauss, sketching for least squares).\par}
+
+\end{document}
