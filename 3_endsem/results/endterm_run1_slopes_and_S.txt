@@ -1,0 +1,6 @@
+lgbm: log-log slope of Plot 3 coreset -0.59, uniform -0.48; Plot 5 coreset -0.19, uniform -0.18; ratio Plot5/Plot3 (coreset) 0.33
+ridge: log-log slope of Plot 3 coreset -0.78, uniform -0.99; Plot 5 coreset -0.52, uniform -0.50; ratio Plot5/Plot3 (coreset) 0.66
+              S  alpha_max
+model                     
+lgbm   2.466848   2.445402
+ridge  2.120734   1.012389
