@@ -61,9 +61,17 @@ misses the gate; it is not adopted.
 | Pooled Optuna (TPE, sampler seeds 20260807/08, 80 trials, objective = folds 2-3 blend RMSLE at w 0.2) | 80 trials | best 0.1105 vs `hp17` 0.1109 vs `cs02` 0.1123; top 10 span 0.0005; no replacement |
 | TabPFN-TS context length | 365 / 540 / 730 days and mixes | 730 fixes winter fold 1, loses fold 5; equal 365/730 mix is the only input without a loss on folds 1 and 5 |
 | Blend weight | 0.1 .. 0.5 | flat within 0.001-0.002; 0.3 adds 0.0010 over 0.2 on folds 2-4 (below noise) and lowers fold 5 |
+| Optuna finalists on all five folds (seed 07, lr 0.025, 1000 fixed rounds) | 5 trials | vs `hp17` on the same seed: folds 2-4 +0.0001 .. +0.0007, fold 1 -0.0057 .. +0.0013, fold 5 -0.0028 .. +0.0006; none near the gate, `hp17` kept (`g6c_finalists_5folds.csv`) |
 
-Total recipe variants scored on the same folds: about 120 (20 + 8 + 80 + contexts + weights + about 40 ideas above).
+Total recipe variants scored on the same folds: about 125 (20 + 8 + 80 + 5 finalists + contexts + weights + about 40 ideas above).
 
 ## D. Error analysis of `cs02`
 The 10 worst of 168 forecast days carry 28% of the squared error; they are event days (holidays, Easter, Sundays, promotion
 and school-closure days). Holiday days score 0.267 against 0.133 on ordinary days. The forecast window has no regional holidays.
+
+## E. Leakage check: every decision re-taken without fold 4
+Fold 4 (8 May 2015 origin) is also the end-term test window. `code/leakage_check.py` re-takes each decision that used fold-4
+scores with fold 4 removed (`leakage_check_without_fold4.csv`). None changes: `cs02` over `base` (+0.0119 on folds 2-3, fold 1
++0.0210); `hp17` alone still fails (seed 08 loses fold 2); the frozen blend still passes (+0.0050 on folds 2-3, every seed
+positive, fold 5 positive); weight 0.2 kept (best rival 0.3, +0.0006, below noise); the 365/730 mix kept (730 alone +0.0010,
+below noise). Rounds, ridge lambda, the end-term learning rate, sensitivities and column choice never used fold 4.

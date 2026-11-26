@@ -108,7 +108,7 @@ Fallbacks kept, not overwritten: rehearsal 2 (same recipe, forecast `0d9dd419...
 4. **Winter fold 1** is 0.0027 worse than `hp17` alone; unexplained, accepted for a summer forecast window.
 5. **End-term timings** come from a shared server; the exclusive rerun (fixed cores, 16 threads, load logged) is still open.
 6. **Coreset weight-normalisation check** (one size with unnormalised weights) was planned and not run.
-7. **Member contributions** in the report header are still to be confirmed by each member.
+7. **Member contributions** in the report header: filled for one member (26 Nov); the other four are still to be confirmed by each member.
 
 ## 6. Decision
 **GO.** Every essential check passes: the formula matches the implementation, no leakage was found, the gate passes when
@@ -119,3 +119,21 @@ check. One CONDITION is stated: a retrain is not bit-identical (RMS log differen
 **Frozen:** recipe `hp17_fix1000` x 3 seeds + TabPFN-TS (equal log mix of 365- and 730-day contexts) at weight 0.2. Artifact:
 `final/` (forecast SHA-256 `7d44a050...4484`). No further model search. From here on, the remaining effort goes to the end-term
 presentation, source-backed comparisons and the exclusive timing run.
+
+## 7. Post-freeze checks (26 Nov 2026, evening; nothing in `final/` was refitted)
+1. **Optuna finalists.** The five best pooled-Optuna trials were re-run on all five folds (seed 07, lr 0.025, 1000 fixed
+   rounds, 24 threads). Against `hp17` on the same seed they gained +0.0001 to +0.0007 on folds 2-4, between -0.0057 and
+   +0.0013 on fold 1, and between -0.0028 and +0.0006 on fold 5 (`results/g6c_finalists_5folds.csv`). None comes near the
+   gate, so the frozen recipe stays.
+2. **Leakage check (fold 4 = end-term test window).** Every decision that used fold-4 scores was re-taken with fold 4 removed
+   (`code/leakage_check.py`, `results/leakage_check_without_fold4.csv`). None changes. The frozen blend passes on folds 2-3
+   alone with +0.0050, every seed positive and fold 5 positive. `hp17` alone still fails.
+3. **Re-running the frozen models from the repository.** `code/model/g8_final/export_forecast_matrix.py` wrote the exact
+   input matrix of the forecast window on the server (`final/forecast_matrix_open.parquet`, 40,282 open rows x 342 columns +
+   Id). `code/model/predict_frozen.py` and `notebook/02_run_frozen_forecaster.ipynb` rebuild every seed's forecast and
+   `final/submission_final.csv` from the gzipped boosters with a maximum log difference of 0.0, in about 10 s on a laptop.
+4. **Feature use.** Split gain of the three boosters by group (`results/feature_group_importance.csv`): the hub x weekday x
+   promotion profile is 46%, rolling order windows 22%, the promotion calendar 8% and the hub encoding 6%. The 115
+   session/conversion columns are 2.5%.
+
+The decision in section 6 is unchanged: **GO**, with the same single condition.

@@ -1,0 +1,9 @@
+decision,rule,with_fold4,without_fold4,same_decision
+x* recipe: cs02 (feature fraction 0.2 + bagging) over base,folds 2-4,adopt=True gain 0.0093,adopt=True gain 0.0119 (fold 1 +0.0210),True
+forecaster: hp17 alone,gate (folds 2-4 / folds 2-3),pass=False gain 0.0019,pass=False gain 0.0025 (every seed positive: False),True
+"forecaster: hp17 + TabPFN-TS mix, w 0.2",gate (folds 2-4 / folds 2-3),pass=True gain 0.0045,pass=True gain 0.0050 (every seed positive: True),True
+forecaster: TabPFN-TS weight,keep 0.2 unless a rival wins by > noise,w=0.2 (best rival 0.3 +0.0007),w=0.2 (best rival 0.3 +0.0006),True
+forecaster: 365/730 context mix,mix unless a single context wins by > noise,mix (best single 730 +0.0008),mix (best single 730 +0.0010),True
+x* rounds (1184) and ridge lambda: training-only holdout,fold 4 not used,-,-,True
+"x* learning rate 0.05: screening default, not tuned",fold 4 not used,-,-,True
+"coreset: rough models, sensitivities, column importance: training rows only",fold 4 not used,-,-,True

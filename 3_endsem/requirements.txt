@@ -1,15 +1,17 @@
-# laptop level (notebook, audit, figures)
+# laptop / Colab level (both notebooks, frozen-model re-run, audit, leakage check, figures, tests)
 numpy>=1.25
 pandas>=2.2
 matplotlib>=3.8
 pillow>=10
+pyarrow>=14
+lightgbm>=4.0          # reads the frozen boosters; 4.7.0 trained them
 nbformat>=5.9
 nbconvert>=7.0
 ipykernel>=6.0
+pytest>=8
 # server level (experiments and final retrain); versions used for the frozen model
-lightgbm==4.7.0
+# lightgbm==4.7.0
 scikit-learn==1.7.2
-pyarrow>=14
 optuna>=3.6
 # TabPFN-TS member (GPU)
 tabpfn-time-series

@@ -197,8 +197,124 @@ def fig_optuna() -> None:
     save(fig, "fig_optuna")
 
 
+SHORT_GROUP = {
+    "Hub x weekday x promotion profile": "hub x weekday x promo profile", "Order rolling windows (7-730 days)": "order rolling windows",
+    "Promotion calendar (known ahead)": "promotion calendar", "Hub identity (cross-fitted encoding, id)": "hub identity (encoding)",
+    "Calendar and horizon": "calendar, horizon", "Same-day lags and value at origin": "same-day lags",
+    "Sessions, conversion, volume per session": "sessions, conversion", "Open/closed calendar (known ahead)": "open/closed calendar",
+    "Holidays and school closures (known ahead)": "holidays, school closures", "History coverage and data-gap flags": "data-gap flags",
+    "Hub metadata, competition, loyalty": "hub metadata",
+}
+
+
+def fig_feature_groups() -> None:
+    p = RES / "feature_group_importance.csv"
+    if not p.exists():
+        return
+    d = pd.read_csv(p).sort_values("gain_share")
+    fig, ax = plt.subplots(figsize=(3.5, 2.5))
+    y = np.arange(len(d))
+    colors = [ULTRA if v >= 0.2 else GREY for v in d["gain_share"]]
+    ax.barh(y, d["gain_share"] * 100, color=colors, height=0.62)
+    ax.errorbar(d["gain_share"] * 100, y, xerr=[(d["gain_share"] - d["seed_min"]) * 100, (d["seed_max"] - d["gain_share"]) * 100],
+                fmt="none", ecolor=INK, elinewidth=0.6, capsize=1.5)
+    for yi, (share, n) in enumerate(zip(d["gain_share"], d["columns"])):
+        ax.text(d["seed_max"].iloc[yi] * 100 + 1.0, yi, f"{share * 100:.1f}% ({n})", va="center", fontsize=6.2, color=INK)
+    ax.set_yticks(y, [SHORT_GROUP.get(g, g) for g in d["group"]], fontsize=6.6)
+    ax.set_xlim(0, 66)
+    ax.set_xlabel("% of split gain, 3 frozen boosters (min-max); (n) = columns")
+    ax.set_title("Which of the 342 columns the trees use", fontsize=8, loc="left")
+    ax.grid(axis="y", visible=False)
+    save(fig, "fig_feature_groups")
+
+
+def fig_model_ladder() -> None:
+    f = pd.read_csv(RES / "audit_fold_scores.csv")
+    f = f[f["arm"] == "3seed"].sort_values("fold")
+    models = (("cs02_all", "cs02 baseline (x* recipe family)", GREY, "o", "-"), ("hp17_all", "hp17 alone (tuned)", SOFT, "s", "--"),
+              ("candidate_all", "hp17 + TabPFN-TS, w 0.2 (submitted)", ULTRA, "D", "-"))
+    fig, axes = plt.subplots(1, 2, figsize=(5.2, 2.3), gridspec_kw={"width_ratios": [4, 1.3]})
+    for col, lab, c, mk, ls in models:
+        a = f[f["fold"] <= 4]
+        axes[0].plot(a["fold"], a[col], color=c, marker=mk, ls=ls, label=lab)
+        b = f[f["fold"] == 5]
+        axes[1].plot([5], b[col], color=c, marker=mk, ls="none", markersize=5)
+    axes[0].set_xticks([1, 2, 3, 4], ["fold 1\n2 Jan", "fold 2\n13 Feb", "fold 3\n27 Mar", "fold 4\n8 May\n= end-term test"])
+    axes[1].set_xticks([5], ["fold 5\n19 Jun 2014\n(935 hubs)"])
+    axes[0].set_ylabel("development-fold RMSLE (3-seed avg)")
+    axes[0].set_title("Development folds, 42-day forecasts from each origin (no real test labels exist)", fontsize=7.2, loc="left")
+    axes[0].legend(loc="upper right", fontsize=6.3)
+    save(fig, "fig_model_ladder")
+
+
+def fig_forecast_examples() -> None:
+    raw = ROOT.parent / "1_midterm" / "data" / "raw"
+    sub = ROOT / "final" / "submission_final.csv"
+    if not (raw / "orders_train.csv").exists() or not sub.exists():
+        return
+    hist = pd.read_csv(raw / "orders_train.csv", usecols=["HubID", "Date", "OrderVolume"], parse_dates=["Date"])
+    frame = pd.read_csv(raw / "orders_test.csv", usecols=["Id", "HubID", "Date"], parse_dates=["Date"]).merge(pd.read_csv(sub), on="Id")
+    fig, axes = plt.subplots(3, 1, figsize=(7.0, 3.6), sharex=True)
+    start = hist["Date"].max() - pd.Timedelta(days=90)
+    for ax, hub in zip(axes, (1, 262, 817)):
+        h = hist[(hist["HubID"] == hub) & (hist["Date"] > start)]
+        f = frame[frame["HubID"] == hub]
+        ax.plot(h["Date"], h["OrderVolume"] / 1000, color=GREY, lw=0.9, label="history (actual)")
+        ax.plot(f["Date"], f["OrderVolume"] / 1000, color=ULTRA, lw=1.3, label="submitted forecast (no labels)")
+        ax.set_ylabel(f"hub {hub}\n(k orders)", fontsize=6.5)
+    axes[0].legend(loc="upper left", ncol=2, fontsize=6.3)
+    axes[0].set_title("Last 90 days of history and the 42-day forecast (closed days are exactly 0)", fontsize=7.5, loc="left")
+    save(fig, "fig_forecast_examples")
+
+
+def _box(ax, x: float, y: float, w: float, h: float, text: str, edge: str, face: str = "white", size: float = 6.2) -> None:
+    from matplotlib.patches import FancyBboxPatch
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.004,rounding_size=0.012", linewidth=0.9, edgecolor=edge, facecolor=face))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=size, color=INK, linespacing=1.25)
+
+
+def _arrow(ax, x0: float, y0: float, x1: float, y1: float) -> None:
+    ax.annotate("", xy=(x1, y1), xytext=(x0, y0), arrowprops=dict(arrowstyle="-|>", color=GREY, lw=0.8, shrinkA=0, shrinkB=0))
+
+
+def fig_pipeline() -> None:
+    fig, ax = plt.subplots(figsize=(7.2, 3.0))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+    size = 5.4
+    _box(ax, 0.006, 0.40, 0.114, 0.22, "Raw data\n1,115 hubs, daily\n1 Jan 2013 -\n19 Jun 2015", GREY, size=size)
+    _box(ax, 0.145, 0.36, 0.14, 0.30, "37 forecast origins,\n14 days apart\n342 features from\nhistory up to origin\ntarget log1p(orders)\non days o+1 ... o+42", GREY, size=size)
+    _arrow(ax, 0.12, 0.51, 0.145, 0.51)
+    ax.text(0.33, 0.955, "TRACK A  -  end-term rubric (coreset study)", fontsize=6.8, color=ULTRA, weight="bold")
+    ax.text(0.33, 0.425, "TRACK B  -  the forecaster we submit", fontsize=6.8, color=INK, weight="bold")
+    top = (("Fixed split\ntrain: labels to 8 May 2015\ntest: 9 May-19 Jun 2015\n46,830 rows", GREY),
+           ("x* = LightGBM cs02\n1.13M rows x 342 cols\nsecond model: ridge\nsame settings on all", ULTRA),
+           ("Coreset\n5 rough models ->\nsensitivities s_i ->\nm rows, w = 1/(m p_i)", ULTRA),
+           ("Plots 1-5, time\nm = 50k: 0.1070\n(uniform 0.1102)\n2.75x faster", ULTRA))
+    bottom = (("Dev folds 1-5\ngate fixed in advance\n>= 0.0024, all seeds", GREY),
+              ("cs02 -> hp17 (tuned)\n+ TabPFN-TS 365/730\nweight 0.2 (log space)", INK),
+              ("Final retrain\nall 37 origins, 3 seeds\nfrozen: SHA-256,\n13 checks", INK),
+              ("Forecast CSV\n20 Jun - 31 Jul 2015\n46,830 rows\nno labels, no score", INK))
+    xs, w, gap = (0.33, 0.50, 0.67, 0.84), 0.145, 0.025
+    for lane, y in ((top, 0.57), (bottom, 0.05)):
+        for i, ((text, edge), x) in enumerate(zip(lane, xs)):
+            _box(ax, x, y, w, 0.33, text, edge, size=size)
+            if i:
+                _arrow(ax, x - gap, y + 0.165, x, y + 0.165)
+    _arrow(ax, 0.285, 0.60, 0.33, 0.72)
+    _arrow(ax, 0.285, 0.42, 0.33, 0.22)
+    ax.text(0.0, 0.25, "Leakage guards:\n- features stop at the origin\n- training-origin purge\n- cross-fitted hub encoding\n"
+            "- fixed rounds, no early\n  stopping on scored folds\n- test rows: scoring only", fontsize=5.5, color=GREY, va="top", linespacing=1.3)
+    save(fig, "fig_pipeline")
+
+
 def main() -> None:
     et = pd.read_csv(RES / "endterm_run1_results.csv")
+    fig_feature_groups()
+    fig_model_ladder()
+    fig_pipeline()
+    fig_forecast_examples()
     fig_rows(et)
     fig_columns(et)
     fig_time(et)
