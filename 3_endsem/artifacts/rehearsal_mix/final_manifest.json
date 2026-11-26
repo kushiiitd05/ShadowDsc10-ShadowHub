@@ -1,0 +1,112 @@
+{
+  "lightgbm_s20260807": {
+    "file": "lightgbm_s20260807.txt",
+    "sha256": "0afea5f8895152143eb86cf9d64e98c9b6611120d691261203d6df9b31e73dec",
+    "best_iteration": 1000,
+    "log_offset_c": 0.0,
+    "seed": 20260807,
+    "train_rows": 1434050
+  },
+  "lightgbm_s20260808": {
+    "file": "lightgbm_s20260808.txt",
+    "sha256": "d7845811b47945964b5bb2b7811c202373c1ada467fce7662ccc0e655bb8919b",
+    "best_iteration": 1000,
+    "log_offset_c": 0.0,
+    "seed": 20260808,
+    "train_rows": 1434050
+  },
+  "lightgbm_s20260809": {
+    "file": "lightgbm_s20260809.txt",
+    "sha256": "e6f3a16cd01acd92ac72ef536a2756415a90bb1d3ed89cbc181cf7101f090d29",
+    "best_iteration": 1000,
+    "log_offset_c": 0.0,
+    "seed": 20260809,
+    "train_rows": 1434050
+  },
+  "_run": {
+    "mode": "final",
+    "seed": 20260807,
+    "seeds": [
+      20260807,
+      20260808,
+      20260809
+    ],
+    "train_rows": 1434050,
+    "n_columns": 342,
+    "training_origins": 37,
+    "last_label_date": "2015-06-19",
+    "forecast_origin": "2015-06-19",
+    "first_target_date": "2015-06-20",
+    "timings_s": {
+      "verify_origins": 0.1722478037700057,
+      "load_training": 19.691478302702308,
+      "hub_encoding": 3.579625359736383,
+      "prepare_matrices": 19.301750878803432,
+      "fit_lightgbm_s20260807": 184.4187592919916,
+      "fit_lightgbm_s20260808": 168.52674239780754,
+      "fit_lightgbm_s20260809": 181.92359534092247
+    },
+    "submission_sha256": "0d9dd419126c45a215537b52aa306d42e3ba64be8a2b9cd885eff96f02a9e962",
+    "predictions_file": "submission_final.csv",
+    "recipe": "hp17",
+    "blend_weight": 0.2,
+    "blend_file_sha256": "6d5eb125bbad218e89667be9c0fdeae5192ed9ca8e3324c9127f8a15b697cab3",
+    "config": {
+      "recipe": "hp17",
+      "variant": "hp17_fix1000",
+      "pertier_recipe": "cs02",
+      "te": true,
+      "target": "log",
+      "offset": false,
+      "recency": null,
+      "colsample": 0.15,
+      "subsample_freq": 1,
+      "objective": "regression",
+      "linear_tree": false,
+      "num_leaves": 255,
+      "min_child": 160,
+      "reg_lambda": 24.1,
+      "extra_trees": false,
+      "fixed_rounds": 1000,
+      "model": "lightgbm",
+      "learning_rate": 0.025,
+      "lgb_params": {
+        "objective": "regression",
+        "n_estimators": 1000,
+        "learning_rate": 0.025,
+        "num_leaves": 255,
+        "min_child_samples": 160,
+        "subsample": 0.85,
+        "subsample_freq": 1,
+        "colsample_bytree": 0.15,
+        "reg_lambda": 24.1,
+        "extra_trees": false,
+        "verbosity": -1
+      }
+    },
+    "blend": {
+      "mode": "member",
+      "with_pertier": false,
+      "pertier_seeds": [],
+      "pertier_group_column": "AssortmentTier",
+      "pertier_fallback_rows": 0,
+      "external": {
+        "file": "test_pred_tabpfnts_mix.csv",
+        "sha256": "6d5eb125bbad218e89667be9c0fdeae5192ed9ca8e3324c9127f8a15b697cab3",
+        "weight": 0.2,
+        "space": "log1p"
+      }
+    },
+    "inputs": {
+      "target_frame": "test_forecast_features",
+      "training_origin_manifest_sha256": "c5fb258027824e5c7d6bbb7bd728836acfcad35206d42e2c61ac755d328225d9"
+    },
+    "versions": {
+      "python": "3.11.18",
+      "lightgbm": "4.7.0",
+      "numpy": "1.25.2",
+      "pandas": "2.3.3",
+      "scikit-learn": "1.7.2"
+    }
+  }
+}
