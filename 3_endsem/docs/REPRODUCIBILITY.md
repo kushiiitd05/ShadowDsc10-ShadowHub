@@ -5,7 +5,7 @@ Four levels, from cheapest to full.
 ## Level 0: anywhere, including Colab (no setup)
 Open `notebook/01_endterm_results.ipynb` or `notebook/02_run_frozen_forecaster.ipynb` (on Colab: File > Open notebook >
 GitHub, repository `kushiiitd05/ShadowDsc10-ShadowHub`). The first cell finds the `3_endsem` folder. If the folder is
-missing, the cell clones the repository with a sparse checkout (`3_endsem/` and `1_midterm/data/raw/`, about 80 MB) and
+missing, the cell clones the repository with a sparse checkout (`3_endsem/` and `1_midterm/data/raw/`, about 200 MB including git history) and
 installs any missing package (`lightgbm`, `pyarrow`). Notebook 1 rebuilds every table and figure from the saved outputs.
 Notebook 2 loads the three frozen boosters and their exact input matrix and rebuilds `final/submission_final.csv`, with a
 maximum log difference of 0.0.
