@@ -92,6 +92,12 @@ VARIANTS: dict[str, Config] = {
     "hp17_cs02": Config(colsample=0.20, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1),
     "hp17_127": Config(colsample=0.15, subsample_freq=1, num_leaves=127, min_child=160, reg_lambda=24.1),
     "hp17_fix1000": Config(colsample=0.15, subsample_freq=1, num_leaves=255, min_child=160, reg_lambda=24.1, fixed_rounds=1000),
+    # round 5: top five pooled Optuna trials (study A / B), final-retrain setting
+    "g6c_a_t21": Config(colsample=0.168766, subsample_freq=1, num_leaves=255, min_child=123, reg_lambda=1.875629, fixed_rounds=1000),
+    "g6c_a_t35": Config(colsample=0.167769, subsample_freq=1, num_leaves=255, min_child=220, reg_lambda=2.090166, fixed_rounds=1000),
+    "g6c_b_t30": Config(colsample=0.194033, subsample_freq=1, num_leaves=383, min_child=133, reg_lambda=14.735154, fixed_rounds=1000),
+    "g6c_b_t28": Config(colsample=0.195113, subsample_freq=1, num_leaves=383, min_child=124, reg_lambda=14.202669, fixed_rounds=1000),
+    "g6c_a_t37": Config(colsample=0.173647, subsample_freq=1, num_leaves=383, min_child=140, reg_lambda=5.200628, fixed_rounds=1000),
 }
 
 
