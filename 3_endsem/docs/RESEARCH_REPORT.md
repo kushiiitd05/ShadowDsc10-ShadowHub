@@ -30,7 +30,8 @@ regional holidays, so holiday features cannot help there.
 
 ## 5. The searches
 20-config random search: `hp_017` is the only config better on all four folds (best of 19). 8 neighbours sit within 0.002 (a
-plateau). 80 pooled Optuna trials: best 0.1105 vs `hp17` 0.1109, a third of the noise. TabPFN-TS context/weight grid: flat
+plateau). 80 pooled Optuna trials: best 0.1105 vs `hp17` 0.1109, a third of the noise. The 5 finalists, re-run on all five folds, gain +0.0001 to
++0.0007 over `hp17` on folds 2-4. TabPFN-TS context/weight grid: flat
 within 0.001-0.002. Conclusion: the recipe is saturated on these inputs.
 
 ## 6. Risks and limits
@@ -52,6 +53,6 @@ cost, which is the subject of the end-term: a 50k-row coreset trains in a third 
 ## Five examiner questions
 1. *Why is the gate 0.0024?* Twice the measured seed-to-seed noise (0.0012) of the same recipe. A gain below that cannot be told apart from reseeding.
 2. *Is the gain real or selection bias?* Partly selection: `hp17`'s gain shrank on fresh seeds. The frozen blend still clears the gate on each of three seeds separately and on fold 5, which was not used to pick the weight.
-3. *Why not use fold 4 as a test set?* It shaped earlier choices, so we call it a development fold and report it as such.
+3. *Why not use fold 4 as a test set?* It shaped earlier choices, so we call it a development fold and report it as such. Re-taking every decision without fold 4 changes none of them (`results/leakage_check_without_fold4.csv`).
 4. *Why does fold 5 have larger error?* It has 9 open-but-zero rows. Without them the frozen model scores 0.1105, not 0.1737.
 5. *Why accept the fold-1 loss against `hp17` alone?* The forecast window is summer with no holidays, and the season-matched fold 5 improves on every seed. The fold-1 loss is stated, not hidden.
