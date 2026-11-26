@@ -1,0 +1,31 @@
+column,group,gain_share,seed_min,seed_max
+HistHubDOWPromoOrdersMean,Hub x weekday x promotion profile,0.18653,0.17686,0.19404
+HistHubPromoOrdersMean,Hub x weekday x promotion profile,0.14045,0.09118,0.21259
+HistHubDOWOrdersMean,Hub x weekday x promotion profile,0.09424,0.08756,0.10645
+HubID_TE,"Hub identity (cross-fitted encoding, id)",0.0421,0.00685,0.06912
+Orders_365D_MeanOpen,Order rolling windows (7-730 days),0.02667,0.01269,0.03878
+HistHubDOWPromoSessionsMean,Hub x weekday x promotion profile,0.024,0.01212,0.0336
+Orders_180D_MeanOpen,Order rolling windows (7-730 days),0.02356,0.01473,0.03509
+Orders_182D_MeanOpen,Order rolling windows (7-730 days),0.02227,0.01245,0.03145
+Orders_TargetLag42D,Same-day lags and value at origin,0.01868,0.01188,0.0246
+ISOWeek,Calendar and horizon,0.0185,0.01637,0.0202
+HubID,"Hub identity (cross-fitted encoding, id)",0.01725,0.01134,0.02391
+Promo_DaysSinceActive,Promotion calendar (known ahead),0.0166,0.0119,0.02059
+Orders_182D_MedianOpen,Order rolling windows (7-730 days),0.01579,0.00801,0.0208
+Orders_365D_MedianOpen,Order rolling windows (7-730 days),0.01538,0.00172,0.04161
+PromoActive,Promotion calendar (known ahead),0.01407,0.00284,0.02122
+Orders_180D_MedianOpen,Order rolling windows (7-730 days),0.0129,0.00447,0.0188
+Promo_DaysUntilActiveVisible,Promotion calendar (known ahead),0.01176,0.00893,0.01466
+Orders_182D_MeanAll,Order rolling windows (7-730 days),0.01136,0.00712,0.0181
+Orders_365D_MeanAll,Order rolling windows (7-730 days),0.01061,0.00085,0.02381
+Orders_84D_MedianOpen,Order rolling windows (7-730 days),0.01041,0.00109,0.01625
+Promo_DaysUntilInactiveVisible,Promotion calendar (known ahead),0.01001,0.00578,0.01423
+Orders_84D_MeanOpen,Order rolling windows (7-730 days),0.00937,0.00115,0.02558
+Promo_DaysSinceInactive,Promotion calendar (known ahead),0.0091,0.00627,0.01276
+Orders_730D_MedianOpen,Order rolling windows (7-730 days),0.00903,0.00033,0.02007
+Promo_StreakLengthVisible,Promotion calendar (known ahead),0.00878,0.00601,0.01207
+Orders_TargetLag364D,Same-day lags and value at origin,0.00856,0.00653,0.01145
+Orders_TargetLag28D,Same-day lags and value at origin,0.00808,0.00699,0.00909
+DayOfMonth,Calendar and horizon,0.00803,0.00564,0.01009
+HistHubDOWSessionsMean,Hub x weekday x promotion profile,0.00792,0.00655,0.0093
+DayOfYear,Calendar and horizon,0.00744,0.00579,0.00908
