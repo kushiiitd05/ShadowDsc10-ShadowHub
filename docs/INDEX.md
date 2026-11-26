@@ -22,6 +22,15 @@
 | `docs/member_contributions.csv` | Contribution notes |
 | `reference/` | Course guidelines and the LaTeX template |
 
+## `3_endsem/` (the end-term submission)
+| Path | Says |
+|---|---|
+| `README.md` | Deliverables, headline numbers, frozen protocol, folder map |
+| `report/main.pdf` | The end-term report |
+| `notebook/DSC10_endterm.ipynb` | Executed notebook that rebuilds every table and figure |
+| `docs/FREEZE_AUDIT.md` | Freeze audit and GO decision for the forecaster |
+| `final/` | Frozen models, forecast file, manifest with SHA-256 |
+
 ## `2_future_work_progress/`
 | Path | Says |
 |---|---|
