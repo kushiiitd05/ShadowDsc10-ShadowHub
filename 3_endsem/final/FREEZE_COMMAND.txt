@@ -1,0 +1,9 @@
+cwd: <run_root>/improve
+command: ../env311/bin/python g8_final/final_retrain.py ../proj <run_root>/final_freeze_2026-11-26 --recipe hp17 --blend-file ../blend_in/test_pred_tabpfnts_mix.csv --blend-weight 0.2 --seeds 20260807,20260808,20260809 --n-jobs 16
+started: 2026-11-26T11:35:13+05:30
+load: 28.50 30.86 24.62 26/10192 2437430
+886cf55bac625f310c28241e72675e6b4e78538930f6c51ec8ca5876afb5c02d  g8_final/final_retrain.py
+cf8d4f7723276d4701f0ff9fa7d62d847b0c3af6693af3501d21bcb32437cc3e  exp_runner.py
+2c15ab386fb564b3b5a9465eacbb07cbd4943694bcb57ba2dfeca6abed47bad2  helpers.py
+6d5eb125bbad218e89667be9c0fdeae5192ed9ca8e3324c9127f8a15b697cab3  ../blend_in/test_pred_tabpfnts_mix.csv
+2026-11-26T12:01:06+05:30
