@@ -1,14 +1,14 @@
-# Hub Order Demand Forecasting —
+# Hub Order Demand Forecasting (progress-phase modelling)
 
-Time-series demand forecasting for 1,115 retail hubs over a 42-day horizon. Built for the
-**Shadow Hub Data Science** competition, and reused here as our
-group's Data Science course project. Leaderboard metric is **RMSLE**.
+Time-series demand forecasting for 1,115 retail hubs over a 42-day horizon, done during the progress
+phase of our group's Data Science course project. The metric is **RMSLE**; the local rolling-origin
+CV estimate is `~0.12–0.13`.
 
-**Final public leaderboard score: `0.06976` RMSLE** (down from an initial baseline submission of
-`0.08528`), against a local rolling-origin CV estimate of `~0.12–0.13`.
+> The maintained end-term work (frozen forecaster, coreset study, executed notebooks) is in
+> [`../../3_endsem/`](../../3_endsem/). This folder is kept as the record of the earlier modelling.
 
-> This repo is the **actual working project** — every script, notebook, EDA artifact, trained-model
-> output, and dataset file used to get that score, not a cleaned-up retelling. Read `JOURNEY.md` for
+> This folder is the **actual working project** — every script, EDA artifact, trained-model
+> output, and dataset file used at the time, not a cleaned-up retelling. Read `JOURNEY.md` for
 > the honest blow-by-blow (bugs, dead ends, fixes included); `SUMMARY.md` for the short official
 > write-up; this file for a guided tour of what's here and how to run it.
 
@@ -106,18 +106,16 @@ Modelling code: [`src/model_pipeline.py`](src/model_pipeline.py).
 
 ### Results
 
-| Model | Local CV RMSLE (pooled) | Public leaderboard |
-|---|---|---|
-| Hierarchical mean baseline | ~0.144 | — |
-| CatBoost, full feature set | ~0.130 | — |
-| CatBoost + LightGBM, log-mean blend + offset | ~0.123 | — |
-| CatBoost, full-history retrain (single model) | — | 0.08528 |
-| **Target-encoded HubID + CatBoost + LightGBM + LightGBM-Tweedie, log-mean ensemble** | — | **0.06976** |
+| Model | Local CV RMSLE (pooled) |
+|---|---|
+| Hierarchical mean baseline | ~0.144 |
+| CatBoost, full feature set | ~0.130 |
+| CatBoost + LightGBM, log-mean blend + offset | ~0.123 |
 
-Raw metrics/OOF predictions/submissions: [`artifacts/models/`](artifacts/models/). The CV-vs-leaderboard
-gap (favorable direction, larger than expected) is flagged as an open question in `SUMMARY.md` rather
-than assumed to be free improvement — most likely explanation is the CV folds sitting in a harder,
-sparser stretch of history (adjacent to the renovation gap) than the test window.
+The final ensemble (target-encoded `HubID` + CatBoost + LightGBM + LightGBM-Tweedie, log-mean) was
+refitted on the full history, so it has no local CV score of its own.
+
+Raw metrics/OOF predictions/submissions: [`artifacts/models/`](artifacts/models/).
 
 ## 6. What we tried and what failed
 
@@ -127,7 +125,7 @@ iteration failures (hardcoded paths, missing `PYTHONPATH` in subprocesses, a `st
 why the ensembling idea was validated for free on cached OOF predictions before spending an hour of
 Kaggle compute on it — is in **[`JOURNEY.md`](JOURNEY.md)**. Worth reading before repeating any of it.
 
-Research consulted mid-project (Rossmann 1st-place writeup, entity embeddings, M5's Tweedie/LightGBM
+Research consulted mid-project (published retail-sales forecasting write-ups, entity embeddings, M5's Tweedie/LightGBM
 findings, Montero-Manso & Hyndman on global models, Duan smearing): most of what it recommended was
 already implemented; the two genuinely new levers it contributed were `HubID` target encoding and the
 Tweedie-objective LightGBM.
@@ -143,10 +141,10 @@ artifacts/eda/          EDA findings doc, figures, tables, YData/Sweetviz HTML r
 artifacts/models/       walk-forward CV metrics, OOF predictions, final submissions
 src/                    eda_pipeline.py (audit→preprocess→folds→reports),
                          model_pipeline.py (walk-forward CV harness, CatBoost/LightGBM fitters)
-scripts/                submission builders + the Kaggle-kernel-ready end-to-end pipeline
-                         (scripts/kaggle_kernel/, scripts/kaggle_final/) used for the final run
-notebooks/               exploratory scaffolding (01–05); NOT the source of truth — the
-                         authoritative, reproducible pipeline is src/ + scripts/kaggle_kernel/
+scripts/                submission builders + the end-to-end pipeline (scripts/kaggle_kernel/)
+                         used for the final run; with src/ this is the authoritative pipeline
+(notebooks/)            removed 26 Nov 2026: unexecuted scaffolding, kept in git history;
+                         the executed notebooks are in 3_endsem/notebook/
 tests/                   leakage/contract tests for the EDA pipeline
 README.md               this file — guided tour
 SUMMARY.md              short official competition write-up (approach/validation/results)
@@ -174,7 +172,7 @@ conda run -n eda311 python -m src.model_pipeline walk-forward --feature-group al
 ```
 
 The exact end-to-end pipeline (raw CSVs → features → trained ensemble → submission) that produced the
-final `0.06976` score runs standalone as a Kaggle kernel from
+final submission runs standalone from
 [`scripts/kaggle_kernel/kaggle_end_to_end.py`](scripts/kaggle_kernel/kaggle_end_to_end.py) — no manual
 steps once started. All randomness is seeded with the single disclosed value `20260807`.
 
@@ -184,15 +182,8 @@ Shared privately with the group for our Data Science course project (originally 
 70–80% of it done before the group picked it up). If you're extending this:
 
 - Read `JOURNEY.md` first — it'll save you re-discovering bugs already fixed.
-- `src/eda_pipeline.py` and `src/model_pipeline.py` are the source of truth; the `notebooks/` are
-  unexecuted scaffolding, don't treat them as documentation of what actually ran.
+- `src/eda_pipeline.py` and `src/model_pipeline.py` are the source of truth for this folder.
 - New experiments → new script under `scripts/` or a fold onto `model_pipeline.py`; keep the leakage
   contract in §4 intact (run `tests/` before trusting any change).
 - Large generated files (`data/processed/`, `artifacts/`) are committed so everyone can inspect results
   without re-running the pipeline — if you regenerate them, expect a large diff, that's normal.
-
-## 10. Competition links
-
-Private per competition rules (visible to reviewers granted access):
-- Pipeline kernel: `kaggle.com/code/kushtokas/solari-full-pipeline`
-- Write-up notebook: `kaggle.com/code/kushtokas/solari-writeup`
