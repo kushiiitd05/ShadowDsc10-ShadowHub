@@ -18,7 +18,7 @@ REPO = "https://github.com/kushiiitd05/ShadowDsc10-ShadowHub.git"
 
 
 def setup_cell(packages: tuple[str, ...]) -> nbf.NotebookNode:
-    return code(f"""# Setup: inside the repository, on a fresh machine or on Colab (then it clones only what is needed, about 80 MB)
+    return code(f"""# Setup: inside the repository, on a fresh machine or on Colab (then it clones only what is needed, about 200 MB)
 import os, subprocess, sys
 from pathlib import Path
 
