@@ -27,7 +27,10 @@
 |---|---|
 | `README.md` | Deliverables, headline numbers, frozen protocol, folder map |
 | `report/main.pdf` | The end-term report |
-| `notebook/DSC10_endterm.ipynb` | Executed notebook that rebuilds every table and figure |
+| `notebook/01_endterm_results.ipynb` | Executed notebook that rebuilds every table and figure, the gate and the leakage check |
+| `notebook/02_run_frozen_forecaster.ipynb` | Executed notebook that loads the frozen models and rebuilds the submitted file |
+| `docs/PRESENTATION_BRIEF.md` | 9-slide plan with the reasoning and a question sheet |
+| `docs/TEAM_HANDOVER.md` | What is done, what is left, who did what |
 | `docs/FREEZE_AUDIT.md` | Freeze audit and GO decision for the forecaster |
 | `final/` | Frozen models, forecast file, manifest with SHA-256 |
 
